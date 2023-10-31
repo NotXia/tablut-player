@@ -2,10 +2,10 @@ from State import State, BoardCell, GameState
 import numpy as np
 import unittest
 
-B = int(BoardCell.BLACK)
-W = int(BoardCell.WHITE)
-K = int(BoardCell.KING)
-E = int(BoardCell.EMPTY)
+B = BoardCell.BLACK
+W = BoardCell.WHITE
+K = BoardCell.KING
+E = BoardCell.EMPTY
 
 initial_state =  [[E,E,E,B,B,B,E,E,E],
                   [E,E,E,E,B,E,E,E,E],
@@ -41,4 +41,5 @@ class TestState(unittest.TestCase):
         self.assertEqual(len(state.getMoves()), 56)
 
 
-unittest.main(argv=[''], verbosity=4, exit=False)
+if __name__ == "__main__":
+    unittest.main()
