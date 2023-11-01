@@ -126,8 +126,5 @@ class TestState(unittest.TestCase):
         self.assertFalse(s.isCaptured(4,4))
         self.assertFalse(s.isCaptured(0,0))
 
-    
-
-
 if __name__ == "__main__":
     unittest.main()

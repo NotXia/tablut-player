@@ -4,15 +4,13 @@ import numpy.typing as npt
 from copy import deepcopy
 from enum import IntEnum
 
-class BoardCell(IntEnum):
-    EMPTY = 0
-    BLACK = 1
-    WHITE = 2
-    KING  = 3
-class GameState(IntEnum):
-    WHITE_WIN = 4
-    BLACK_WIN = 5
-    OPEN =  6
+EMPTY = 0
+BLACK = 1
+WHITE = 2
+KING  = 3
+WHITE_WIN = 4
+BLACK_WIN = 5
+OPEN =  6
 
 # Define the winning tiles
 ESCAPE_TILES = [
@@ -55,13 +53,13 @@ class State():
         # if self.white_turn:
         for i in range(9):
             for j in range(9):
-                if (self.white_turn and (self.board[i, j] == BoardCell.WHITE or self.board[i, j] == BoardCell.KING)) or (not self.white_turn and self.board[i, j] == BoardCell.BLACK):
+                if (self.white_turn and (self.board[i, j] == WHITE or self.board[i, j] == KING)) or (not self.white_turn and self.board[i, j] == BLACK):
                     for direction in [0,1,2,3]:
                         n = self.numSteps(i, j, direction)
                         for step in range(1, n+1):
                             new_state = State(deepcopy(self.board), not self.white_turn)
                             original_piece = self.board[i,j]
-                            new_state.board[i, j] = BoardCell.EMPTY
+                            new_state.board[i, j] = EMPTY
                             if direction == 0:
                                 target = (i, j + step)
                             elif direction == 1:
@@ -74,24 +72,24 @@ class State():
 
                             # Check if the  adjacent pieces are captured
                             if new_state.isCaptured(target[0]+1,target[1]):
-                                new_state.board[target[0]+1, target[1]] = BoardCell.EMPTY
+                                new_state.board[target[0]+1, target[1]] = EMPTY
                             if new_state.isCaptured(target[0]-1,target[1]):
-                                new_state.board[target[0]-1, target[1]] = BoardCell.EMPTY
+                                new_state.board[target[0]-1, target[1]] = EMPTY
                             if new_state.isCaptured(target[0],target[1]+1):
-                                new_state.board[target[0], target[1]+1] = BoardCell.EMPTY
+                                new_state.board[target[0], target[1]+1] = EMPTY
                             if new_state.isCaptured(target[0],target[1]-1):
-                                new_state.board[target[0], target[1]-1] = BoardCell.EMPTY
+                                new_state.board[target[0], target[1]-1] = EMPTY
                             
                             res.append(new_state)
         return res
     
-    def isTerminal(self)->GameState:
-        pos_king = np.argwhere(self.board==BoardCell.KING)
+    def isTerminal(self):
+        pos_king = np.argwhere(self.board==KING)
         if len(pos_king)==0:
-            return GameState.BLACK_WIN
+            return BLACK_WIN
         elif ((pos_king[0][0], pos_king[0][1]) in ESCAPE_TILES):
-            return GameState.WHITE_WIN
-        return GameState.OPEN  
+            return WHITE_WIN
+        return OPEN  
               
     def H(self)->float:
         raise NotImplementedError()
@@ -114,34 +112,34 @@ class State():
     def isCaptured(self, i, j)->bool:
         if not self.isValidCell(i, j): return False
         
-        if self.board[i, j] == BoardCell.EMPTY:
+        if self.board[i, j] == EMPTY:
             return False
         # King captured in castle
-        elif (self.board[i, j] == BoardCell.KING and 
-            self.board[i+1, j] == BoardCell.BLACK and
-            self.board[i-1, j] == BoardCell.BLACK and
-            self.board[i, j+1] == BoardCell.BLACK and
-            self.board[i, j-1] == BoardCell.BLACK
+        elif (self.board[i, j] == KING and 
+            self.board[i+1, j] == BLACK and
+            self.board[i-1, j] == BLACK and
+            self.board[i, j+1] == BLACK and
+            self.board[i, j-1] == BLACK
             ):
             return True
         # King captured near castle
-        elif (self.board[i, j] == BoardCell.KING and 
+        elif (self.board[i, j] == KING and 
               (i, j) in [(3, 4), (5, 4), (4, 3), (4, 5)]):
                 cnt_black = 0
                 for k in (+1, -1): # Coordinates increment
                     if (i+k, j) != (4, 4):
-                        if self.board[i+k, j] == BoardCell.BLACK:
+                        if self.board[i+k, j] == BLACK:
                             cnt_black += 1
                     if (i, j+k) != (4, 4):
-                        if self.board[i, j+k] == BoardCell.BLACK:
+                        if self.board[i, j+k] == BLACK:
                             cnt_black += 1
                 if cnt_black == 3:
                     return True
         # Normal capture
         else:
-            to_check = BoardCell.BLACK
-            if self.board[i, j] == BoardCell.BLACK:
-                to_check = BoardCell.WHITE
+            to_check = BLACK
+            if self.board[i, j] == BLACK:
+                to_check = WHITE
             
             return (
                 (
@@ -165,7 +163,7 @@ class State():
             return True
             
         #Pedone vicino
-        if self.board[i, j] == BoardCell.WHITE or self.board[i, j] == BoardCell.KING or self.board[i, j] == BoardCell.BLACK:
+        if self.board[i, j] == WHITE or self.board[i, j] == KING or self.board[i, j] == BLACK:
             return True
         
         if not black_inside:
@@ -207,7 +205,7 @@ class State():
     # Returns True and the number of the camp if it is inside
     # Returns False and None otherwise          
     def insideCamp(self, i, j):
-        if self.board[i,j] != BoardCell.BLACK:
+        if self.board[i,j] != BLACK:
             return False, None
         
         if i == 0 and j >= 3 and j <= 5:
