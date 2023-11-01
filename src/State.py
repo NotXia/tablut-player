@@ -56,10 +56,11 @@ class State():
         for i in range(9):
             for j in range(9):
                 if (self.white_turn and (self.board[i, j] == BoardCell.WHITE or self.board[i, j] == BoardCell.KING)) or (not self.white_turn and self.board[i, j] == BoardCell.BLACK):
-                    for direction in range(4):
+                    for direction in [0,1,2,3]:
                         n = self.numSteps(i, j, direction)
                         for step in range(1, n+1):
                             new_state = State(deepcopy(self.board), not self.white_turn)
+                            original_piece = self.board[i,j]
                             new_state.board[i, j] = BoardCell.EMPTY
                             if direction == 0:
                                 target = (i, j + step)
@@ -69,7 +70,7 @@ class State():
                                 target = (i, j - step)
                             elif direction == 3:
                                 target = (i + step, j)
-                            new_state.board[target[0], target[1]] = BoardCell.WHITE
+                            new_state.board[target[0], target[1]] = original_piece
 
                             # Check if the  adjacent pieces are captured
                             if new_state.isCaptured(target[0]+1,target[1]):
@@ -91,8 +92,7 @@ class State():
         elif ((pos_king[0][0], pos_king[0][1]) in ESCAPE_TILES):
             return GameState.WHITE_WIN
         return GameState.OPEN  
-        
-          
+              
     def H(self)->float:
         raise NotImplementedError()
 
@@ -105,10 +105,10 @@ class State():
     # Check if the cell is a camp or the castle
     def isWall(self, i, j)->bool:
         return (i, j) in [(0, 3), (0, 4), (0, 5), (1, 4),
-                                    (3, 0), (4, 0), (5, 0), (4, 1),
-                                    (3, 8), (4, 8), (5, 8), (4, 7),
-                                    (8, 3), (8, 4), (8, 5), (7, 4),
-                                    (4, 4)]
+                          (3, 0), (4, 0), (5, 0), (4, 1),
+                          (3, 8), (4, 8), (5, 8), (4, 7),
+                          (8, 3), (8, 4), (8, 5), (7, 4),
+                          (4, 4)]
 
     # Check if the pawn in position i, j is captured
     def isCaptured(self, i, j)->bool:
