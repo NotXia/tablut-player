@@ -17,6 +17,9 @@ DOWN = 8
 RIGHT = 9
 LEFT = 10
 
+VERTICAL = 11
+HORIZONTAL = 12
+
 # Define the winning tiles
 ESCAPE_TILES = [
     (0, 1), (0, 2), (0, 6), (0, 7),
@@ -80,17 +83,14 @@ class State():
                             new_state.board[target[0], target[1]] = original_piece
 
                             # Check if the  adjacent pieces are captured
-                            try:
-                                if new_state.board[target[0]+1, target[1]] != EMPTY and new_state.isCaptured(target[0]+1,target[1]):
-                                    new_state.board[target[0]+1, target[1]] = EMPTY
-                                if new_state.board[target[0]-1, target[1]] != EMPTY and new_state.isCaptured(target[0]-1,target[1]):
-                                    new_state.board[target[0]-1, target[1]] = EMPTY
-                                if new_state.board[target[0], target[1]+1] != EMPTY and new_state.isCaptured(target[0],target[1]+1):
-                                    new_state.board[target[0], target[1]+1] = EMPTY
-                                if new_state.board[target[0], target[1]-1] != EMPTY and new_state.isCaptured(target[0],target[1]-1):
-                                    new_state.board[target[0], target[1]-1] = EMPTY
-                            except IndexError:
-                                pass
+                            if new_state.isCaptured(target[0]+1,target[1], to_check_axis=VERTICAL):
+                                new_state.board[target[0]+1, target[1]] = EMPTY
+                            if new_state.isCaptured(target[0]-1,target[1], to_check_axis=VERTICAL):
+                                new_state.board[target[0]-1, target[1]] = EMPTY
+                            if new_state.isCaptured(target[0],target[1]+1, to_check_axis=HORIZONTAL):
+                                new_state.board[target[0], target[1]+1] = EMPTY
+                            if new_state.isCaptured(target[0],target[1]-1, to_check_axis=HORIZONTAL):
+                                new_state.board[target[0], target[1]-1] = EMPTY
                             
                             res.append(new_state)
         return res
@@ -116,8 +116,29 @@ class State():
     def isWall(self, i, j)->bool:
         return (i, j) in CAMP_DICT.keys() or (i, j) == CASTLE_TILE
     
-    # Check if the pawn in position i, j is captured
-    def isCaptured(self, i, j)->bool:
+    
+    """
+        Checks if there is a capture in a given position (i, j).
+        Handles both king and soldiers capture.
+        If not specified, captures are checked both vertically and horizontally.
+
+        Parameters
+        ----------
+            i : int
+                Row of the position.
+            j : int
+                Column of the position.
+            to_check_axis : None | VERTICAL | HORIZONTAL
+                If None, both vertical and horizotal axis are checked for a normal capture.
+                If VERTICAL or HORIZONTAL, only that axis is checked.
+
+        Returns
+        -------
+            is_captured : bool
+                True if the pawn in position (i, j) has been captured.
+                False otherwise.
+    """
+    def isCaptured(self, i: int, j: int, to_check_axis=None)->bool:
         if not self.isValidCell(i, j): return False
         
         if self.board[i, j] == EMPTY:
@@ -132,50 +153,40 @@ class State():
             ):
             return True
         # King captured near castle
-        elif (self.board[i, j] == KING and 
-              (i, j) in NEAR_CASTLE_TILES):
-                cnt_black = 0
-                for k in (+1, -1): # Coordinates increment
-                    if (i+k, j) != CASTLE_TILE:
-                        if self.board[i+k, j] == BLACK:
-                            cnt_black += 1
-                    if (i, j+k) != CASTLE_TILE:
-                        if self.board[i, j+k] == BLACK:
-                            cnt_black += 1
-                if cnt_black == 3:
-                    return True
+        elif (self.board[i, j] == KING and (i, j) in NEAR_CASTLE_TILES):
+            cnt_black = 0
+            for k in (+1, -1): # Coordinates increment
+                if (i+k, j) != CASTLE_TILE:
+                    if self.board[i+k, j] == BLACK:
+                        cnt_black += 1
+                if (i, j+k) != CASTLE_TILE:
+                    if self.board[i, j+k] == BLACK:
+                        cnt_black += 1
+            if cnt_black == 3:
+                return True
         # Normal capture
         else:
-            """
-                C'e un errore nella normal capture nel seguente caso:
-                E W E
-                E B E
-                E W W
-                In cui il black si è mosso spontaneamente tra i 2 white e 
-                dopodichè succede questo:
-                E W E
-                E B W
-                E W E
-                Che non è una cattura ma viene riconosciuta come tale perchè
-                il black ha un white sopra e un white sotto
-            """
-            to_check = BLACK
+            capturing_pawn = BLACK
             if self.board[i, j] == BLACK:
-                to_check = WHITE
+                capturing_pawn = WHITE
+
+            is_vertically_captured = False
+            is_horizontally_captured = False
             
-            return (
-                (
+            if to_check_axis is None or to_check_axis == VERTICAL:
+                is_vertically_captured = (
                     self.isValidCell(i+1, j) and self.isValidCell(i-1, j) and
-                    (self.board[i+1, j] == to_check or self.isWall(i+1, j)) and 
-                    (self.board[i-1, j] == to_check or self.isWall(i-1, j))
+                    (self.board[i+1, j] == capturing_pawn or self.isWall(i+1, j)) and 
+                    (self.board[i-1, j] == capturing_pawn or self.isWall(i-1, j))
                 )
-                or
-                (
+            if to_check_axis is None or to_check_axis == HORIZONTAL:
+                is_horizontally_captured = (
                     self.isValidCell(i, j+1) and self.isValidCell(i, j-1) and
-                    (self.board[i, j+1] == to_check or self.isWall(i, j+1)) and
-                    (self.board[i, j-1] == to_check or self.isWall(i, j-1))
+                    (self.board[i, j+1] == capturing_pawn or self.isWall(i, j+1)) and
+                    (self.board[i, j-1] == capturing_pawn or self.isWall(i, j-1))
                 )
-            ) 
+
+            return is_vertically_captured or is_horizontally_captured
     
     # Check if the cell i,j is an obstacle
     # Considering also the case of black inside the camp

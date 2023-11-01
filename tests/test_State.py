@@ -124,9 +124,17 @@ class TestState(unittest.TestCase):
              [E,E,E,B,B,B,E,E,E]]
         s = State(np.array(b, dtype=np.byte), True)
         self.assertTrue(s.isCaptured(3,4))
+        self.assertFalse(s.isCaptured(3,4, to_check_axis=VERTICAL))
+        self.assertTrue(s.isCaptured(3,4, to_check_axis=HORIZONTAL))
         self.assertTrue(s.isCaptured(3,5))
+        self.assertTrue(s.isCaptured(3,5, to_check_axis=VERTICAL))
+        self.assertFalse(s.isCaptured(3,5, to_check_axis=HORIZONTAL))
         self.assertFalse(s.isCaptured(4,4))
+        self.assertFalse(s.isCaptured(4,4, to_check_axis=VERTICAL))
+        self.assertFalse(s.isCaptured(4,4, to_check_axis=HORIZONTAL))
         self.assertFalse(s.isCaptured(0,0))
+        self.assertFalse(s.isCaptured(0,0, to_check_axis=VERTICAL))
+        self.assertFalse(s.isCaptured(0,0, to_check_axis=HORIZONTAL))
 
 if __name__ == "__main__":
     unittest.main()
