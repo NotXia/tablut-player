@@ -55,11 +55,18 @@ NEAR_CASTLE_TILES = [(3, 4), (5, 4), (4, 3), (4, 5)]
     The state is represented by a matrix of bytes of dimensions 9x9.
 """
 class State():
-    def __init__(self, board: npt.NDArray[np.byte], white_turn: bool):
+    def __init__(self, board: npt.NDArray[np.byte], is_white_turn: bool):
         self.board = board
-        self.is_white_turn = white_turn
+        self.is_white_turn = is_white_turn
 
     
+    """
+        Determines the following board configurations from the current state.
+
+        Returns
+        -------
+            new_states : list[State]
+    """
     def getMoves(self)->list[State]:
         res =[]
         # if self.white_turn:
@@ -83,19 +90,28 @@ class State():
                             new_state.board[target[0], target[1]] = original_piece
 
                             # Check if the  adjacent pieces are captured
-                            if new_state.isCaptured(target[0]+1,target[1], to_check_axis=VERTICAL):
+                            if new_state.isCaptured(target[0]+1,target[1], to_filter_axis=VERTICAL):
                                 new_state.board[target[0]+1, target[1]] = EMPTY
-                            if new_state.isCaptured(target[0]-1,target[1], to_check_axis=VERTICAL):
+                            if new_state.isCaptured(target[0]-1,target[1], to_filter_axis=VERTICAL):
                                 new_state.board[target[0]-1, target[1]] = EMPTY
-                            if new_state.isCaptured(target[0],target[1]+1, to_check_axis=HORIZONTAL):
+                            if new_state.isCaptured(target[0],target[1]+1, to_filter_axis=HORIZONTAL):
                                 new_state.board[target[0], target[1]+1] = EMPTY
-                            if new_state.isCaptured(target[0],target[1]-1, to_check_axis=HORIZONTAL):
+                            if new_state.isCaptured(target[0],target[1]-1, to_filter_axis=HORIZONTAL):
                                 new_state.board[target[0], target[1]-1] = EMPTY
                             
                             res.append(new_state)
         return res
     
-    def isTerminal(self):
+
+    """
+        Determines the status of the current board.
+
+        Returns
+        -------
+            game_state : BLACK_WIN | WHITE_WIN | OPEN
+                The status of the board.
+    """
+    def getGameState(self) -> BLACK_WIN | WHITE_WIN | OPEN:
         pos_king = np.argwhere(self.board==KING)
         if len(pos_king)==0:
             return BLACK_WIN
@@ -103,17 +119,37 @@ class State():
             return WHITE_WIN
         return OPEN  
               
-    def H(self)->float:
-        raise NotImplementedError()
 
-    def evaluate(self)->float:
-        raise NotImplementedError()
+    """
+        Checks if a position is valid.
 
-    def isValidCell(self, i, j)->bool:
+        Parameters
+        ----------
+            i, j: int
+                Row and column of the position to check.
+
+        Returns
+        -------
+            is_valid : bool
+    """
+    def isValidCell(self, i: int, j: int) -> bool:
         return (0 <= i <= 8) and (0 <= j <= 8)
 
-    # Check if the cell is a camp or the castle
-    def isWall(self, i, j)->bool:
+    
+    """
+        Checks if a cell is a wall (camp or the castle).
+        Useful to determine a capture.
+
+        Parameters
+        ----------
+            i, j: int
+                Row and column of the position to check.
+
+        Returns
+        -------
+            is_wall : bool
+    """
+    def isWall(self, i: int, j: int)->bool:
         return (i, j) in CAMP_DICT.keys() or (i, j) == CASTLE_TILE
     
     
@@ -124,11 +160,10 @@ class State():
 
         Parameters
         ----------
-            i : int
-                Row of the position.
-            j : int
-                Column of the position.
-            to_check_axis : None | VERTICAL | HORIZONTAL
+            i, j: int
+                Row and column of the position.
+
+            to_filter_axis : None | VERTICAL | HORIZONTAL
                 If None, both vertical and horizotal axis are checked for a normal capture.
                 If VERTICAL or HORIZONTAL, only that axis is checked.
 
@@ -138,7 +173,7 @@ class State():
                 True if the pawn in position (i, j) has been captured.
                 False otherwise.
     """
-    def isCaptured(self, i: int, j: int, to_check_axis=None)->bool:
+    def isCaptured(self, i: int, j: int, to_filter_axis:None|VERTICAL|HORIZONTAL=None)->bool:
         if not self.isValidCell(i, j): return False
         
         if self.board[i, j] == EMPTY:
@@ -173,13 +208,13 @@ class State():
             is_vertically_captured = False
             is_horizontally_captured = False
             
-            if to_check_axis is None or to_check_axis == VERTICAL:
+            if to_filter_axis is None or to_filter_axis == VERTICAL:
                 is_vertically_captured = (
                     self.isValidCell(i+1, j) and self.isValidCell(i-1, j) and
                     (self.board[i+1, j] == capturing_pawn or self.isWall(i+1, j)) and 
                     (self.board[i-1, j] == capturing_pawn or self.isWall(i-1, j))
                 )
-            if to_check_axis is None or to_check_axis == HORIZONTAL:
+            if to_filter_axis is None or to_filter_axis == HORIZONTAL:
                 is_horizontally_captured = (
                     self.isValidCell(i, j+1) and self.isValidCell(i, j-1) and
                     (self.board[i, j+1] == capturing_pawn or self.isWall(i, j+1)) and
@@ -188,10 +223,27 @@ class State():
 
             return is_vertically_captured or is_horizontally_captured
     
-    # Check if the cell i,j is an obstacle
-    # Considering also the case of black inside the camp
     
-    def isObstacle(self, i, j, num_camp)->bool:
+    """
+        Checks if the cell (i, j) is an obstacle (wall, pawn or board bounds).
+        Handles the case of a black pawn inside its camp.
+
+        Parameters
+        ----------
+            i, j: int
+                Row and column of the position.
+
+            num_camp : None|int
+                Identification number of the camp if the pawn whose this call is referencing is in a camp.
+                None otherwise.
+
+        Returns
+        -------
+            is_obstacle : bool
+                True if the position is an obstacle.
+                False otherwise.
+    """
+    def isObstacle(self, i:int, j:int, num_camp:None|int)->bool:
         # Out of the board
         if not self.isValidCell(i, j):
             return True
@@ -206,10 +258,52 @@ class State():
             return False
         else:
             return self.isWall(i, j)
+        
+
+    """
+        Checks if a (black) pawn is inside a camp.
+
+        Parameters
+        ----------
+            i, j: int
+                Row and column of the pawn.
+
+        Returns
+        -------
+            camp_number : None | int
+                None if the pawn is not in a camp.
+                The identification number of the camp otherwise.
+    """       
+    def getCampOfPawnAt(self, i:int, j:int) -> None|int:
+        if self.board[i,j] != BLACK:
+            return None
+        
+        if ((i == 0 and 3 <= j <= 5) or (i == 1 and j == 4) or
+            (i == 8 and 3 <= j <= 5) or (i == 7 and j == 4) or
+            (j == 0 and 3 <= i <= 5) or (i == 4 and j == 1) or
+            (j == 8 and 3 <= i <= 5) or (i == 4 and j == 7)):
+            return CAMP_DICT[(i,j)]
+        
+        return None
+
+
+    """
+        Determines the number of steps a pawn can do towards a direction.
+
+        Parameters
+        ----------
+            i, j: int
+                Row and column of the pawn.
             
-    # Return the number of steps that a piece can do in a direction
-    
-    def numSteps(self, i, j, direction):
+            direction : RIGHT | UP | LEFT | DOWN
+                Direction to check.
+
+        Returns
+        -------
+            num_steps : int
+                Number of steps the pawn can make.
+    """
+    def numSteps(self, i:int, j:int, direction:RIGHT|UP|LEFT|DOWN) -> int:
         num_camp = self.getCampOfPawnAt(i, j)
         num = 1
         if direction == RIGHT:
@@ -225,18 +319,10 @@ class State():
             while(not self.isObstacle(i + num, j, num_camp)):
                 num +=1
         return num - 1
+    
 
-    # Checks if Black is inside the camp
-    # Returns True and the number of the camp if it is inside
-    # Returns False and None otherwise          
-    def getCampOfPawnAt(self, i:int, j:int) -> None|int:
-        if self.board[i,j] != BLACK:
-            return None
-        
-        if ((i == 0 and 3 <= j <= 5) or (i == 1 and j == 4) or
-            (i == 8 and 3 <= j <= 5) or (i == 7 and j == 4) or
-            (j == 0 and 3 <= i <= 5) or (i == 4 and j == 1) or
-            (j == 8 and 3 <= i <= 5) or (i == 4 and j == 7)):
-            return CAMP_DICT[(i,j)]
-        
-        return None
+    def H(self)->float:
+        raise NotImplementedError()
+
+    def evaluate(self)->float:
+        raise NotImplementedError()
