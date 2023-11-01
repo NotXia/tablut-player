@@ -1,11 +1,13 @@
-from State import State, BoardCell, GameState
+import os, sys
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../src"))
+from State import State, BLACK, WHITE, KING, EMPTY, OPEN, WHITE_WIN, BLACK_WIN
 import numpy as np
 import unittest
 
-B = BoardCell.BLACK
-W = BoardCell.WHITE
-K = BoardCell.KING
-E = BoardCell.EMPTY
+B = BLACK
+W = WHITE
+K = KING
+E = EMPTY
 
 initial_state =  [[E,E,E,B,B,B,E,E,E],
                   [E,E,E,E,B,E,E,E,E],
@@ -84,7 +86,7 @@ class TestState(unittest.TestCase):
              [E,E,E,E,B,E,E,E,E],
              [E,E,E,B,B,B,E,E,E]]
         s = State(np.array(b, dtype=np.byte), True)
-        self.assertEqual(s.isTerminal(), GameState.OPEN)
+        self.assertEqual(s.isTerminal(), OPEN)
 
         b = [[E,E,E,B,B,B,E,E,E],
              [E,E,E,E,B,E,E,E,E],
@@ -96,7 +98,7 @@ class TestState(unittest.TestCase):
              [E,E,E,E,B,E,E,E,E],
              [E,E,E,B,B,B,E,E,E]]
         s = State(np.array(b, dtype=np.byte), True)
-        self.assertEqual(s.isTerminal(), GameState.WHITE_WIN)
+        self.assertEqual(s.isTerminal(), WHITE_WIN)
 
         b = [[E,E,E,B,B,B,E,E,E],
              [E,E,E,E,B,E,E,E,E],
@@ -108,7 +110,7 @@ class TestState(unittest.TestCase):
              [E,E,E,E,B,E,E,E,E],
              [E,E,E,B,B,B,E,E,E]]
         s = State(np.array(b, dtype=np.byte), True)
-        self.assertEqual(s.isTerminal(), GameState.BLACK_WIN)
+        self.assertEqual(s.isTerminal(), BLACK_WIN)
 
     def test_isCaptured(self):
         b = [[E,E,E,B,B,B,E,E,E],
