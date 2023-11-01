@@ -70,10 +70,11 @@ class TestState(unittest.TestCase):
              [E,E,E,E,B,E,E,E,E],
              [E,E,E,B,B,B,E,E,E]]
         s = State(np.array(b, dtype=np.byte), True)
-        self.assertTrue(s.isInsideCamp(0,3)[0])
-        self.assertTrue(s.isInsideCamp(0,4)[0])
-        self.assertTrue(s.isInsideCamp(0,5)[0])
-        self.assertFalse(s.isInsideCamp(2,2)[0])
+        self.assertNotEqual(s.getCampOfPawnAt(0,3), None)
+        self.assertNotEqual(s.getCampOfPawnAt(0,4), None)
+        self.assertNotEqual(s.getCampOfPawnAt(0,5), None)
+        self.assertEqual(s.getCampOfPawnAt(2,2), None)
+        self.assertEqual(s.getCampOfPawnAt(4,1), None)
         
     def test_isTerminal(self):
         b = [[E,E,E,B,B,B,E,E,E],

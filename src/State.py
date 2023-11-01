@@ -191,7 +191,7 @@ class State():
     # Check if the cell i,j is an obstacle
     # Considering also the case of black inside the camp
     
-    def isObstacle(self, i, j, is_black_inside, num_camp)->bool:
+    def isObstacle(self, i, j, num_camp)->bool:
         # Out of the board
         if not self.isValidCell(i, j):
             return True
@@ -202,7 +202,7 @@ class State():
         
         # In the case of black inside the camp, the camp in which the black is
         # is not considered an obstacle
-        if is_black_inside and CAMP_DICT[(i, j)] == num_camp:
+        if num_camp is not None and CAMP_DICT[(i, j)] == num_camp:
             return False
         else:
             return self.isWall(i, j)
@@ -210,33 +210,33 @@ class State():
     # Return the number of steps that a piece can do in a direction
     
     def numSteps(self, i, j, direction):
-        is_black_inside, num_camp = self.isInsideCamp(i, j)
+        num_camp = self.getCampOfPawnAt(i, j)
         num = 1
         if direction == RIGHT:
-            while(not self.isObstacle(i, j + num, is_black_inside, num_camp)):
+            while(not self.isObstacle(i, j + num, num_camp)):
                 num +=1
         elif direction == UP:
-            while(not self.isObstacle(i - num, j, is_black_inside, num_camp)):
+            while(not self.isObstacle(i - num, j, num_camp)):
                 num +=1
         elif direction == LEFT:
-            while(not self.isObstacle(i, j - num, is_black_inside, num_camp)):
+            while(not self.isObstacle(i, j - num, num_camp)):
                 num +=1
         elif direction == DOWN:
-            while(not self.isObstacle(i + num, j, is_black_inside, num_camp)):
+            while(not self.isObstacle(i + num, j, num_camp)):
                 num +=1
         return num - 1
 
     # Checks if Black is inside the camp
     # Returns True and the number of the camp if it is inside
     # Returns False and None otherwise          
-    def isInsideCamp(self, i, j):
+    def getCampOfPawnAt(self, i:int, j:int) -> None|int:
         if self.board[i,j] != BLACK:
-            return False, None
+            return None
         
         if ((i == 0 and 3 <= j <= 5) or (i == 1 and j == 4) or
             (i == 8 and 3 <= j <= 5) or (i == 7 and j == 4) or
             (j == 0 and 3 <= i <= 5) or (i == 4 and j == 1) or
             (j == 8 and 3 <= i <= 5) or (i == 4 and j == 7)):
-            return True, CAMP_DICT[(i,j)]
+            return CAMP_DICT[(i,j)]
         
-        return False, None
+        return None
