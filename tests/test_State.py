@@ -1,6 +1,6 @@
 import os, sys
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../src"))
-from State import State, BLACK, WHITE, KING, EMPTY, OPEN, WHITE_WIN, BLACK_WIN
+from State import *
 import numpy as np
 import unittest
 
@@ -25,20 +25,20 @@ state = State(board, True)
 class TestState(unittest.TestCase):
 
     def test_numSteps(self):
-        self.assertEqual(state.numSteps(2, 4, 0), 4)
-        self.assertEqual(state.numSteps(2, 4, 1), 0)
-        self.assertEqual(state.numSteps(2, 4, 2), 4)
-        self.assertEqual(state.numSteps(2, 4, 3), 0)
+        self.assertEqual(state.numSteps(2, 4, RIGHT), 4)
+        self.assertEqual(state.numSteps(2, 4, UP), 0)
+        self.assertEqual(state.numSteps(2, 4, LEFT), 4)
+        self.assertEqual(state.numSteps(2, 4, DOWN), 0)
 
-        self.assertEqual(state.numSteps(4, 4, 0), 0)
-        self.assertEqual(state.numSteps(4, 4, 1), 0)
-        self.assertEqual(state.numSteps(4, 4, 2), 0)
-        self.assertEqual(state.numSteps(4, 4, 3), 0)
+        self.assertEqual(state.numSteps(4, 4, RIGHT), 0)
+        self.assertEqual(state.numSteps(4, 4, UP), 0)
+        self.assertEqual(state.numSteps(4, 4, LEFT), 0)
+        self.assertEqual(state.numSteps(4, 4, DOWN), 0)
 
-        self.assertEqual(state.numSteps(4, 3, 0), 0)
-        self.assertEqual(state.numSteps(4, 3, 1), 3)
-        self.assertEqual(state.numSteps(4, 3, 2), 0)
-        self.assertEqual(state.numSteps(4, 3, 3), 3)
+        self.assertEqual(state.numSteps(4, 3, RIGHT), 0)
+        self.assertEqual(state.numSteps(4, 3, UP), 3)
+        self.assertEqual(state.numSteps(4, 3, LEFT), 0)
+        self.assertEqual(state.numSteps(4, 3, DOWN), 3)
 
         b = [[E,E,E,B,B,B,E,E,E],
              [E,E,E,E,B,E,E,E,E],
@@ -50,10 +50,10 @@ class TestState(unittest.TestCase):
              [E,E,E,E,B,E,E,E,E],
              [E,E,E,B,B,B,E,E,E]]
         s = State(np.array(b, dtype=np.byte), True)
-        self.assertEqual(s.numSteps(3,1,0), 6)
-        self.assertEqual(s.numSteps(3,1,1), 3)
-        self.assertEqual(s.numSteps(3,1,2), 0)
-        self.assertEqual(s.numSteps(3,1,3), 0)
+        self.assertEqual(s.numSteps(3,1,RIGHT), 6)
+        self.assertEqual(s.numSteps(3,1,UP), 3)
+        self.assertEqual(s.numSteps(3,1,LEFT), 0)
+        self.assertEqual(s.numSteps(3,1,DOWN), 0)
 
     def test_getMoves(self):
         self.assertEqual(len(state.getMoves()), 56)
@@ -70,10 +70,10 @@ class TestState(unittest.TestCase):
              [E,E,E,E,B,E,E,E,E],
              [E,E,E,B,B,B,E,E,E]]
         s = State(np.array(b, dtype=np.byte), True)
-        self.assertTrue(s.insideCamp(0,3)[0])
-        self.assertTrue(s.insideCamp(0,4)[0])
-        self.assertTrue(s.insideCamp(0,5)[0])
-        self.assertFalse(s.insideCamp(2,2)[0])
+        self.assertTrue(s.isInsideCamp(0,3)[0])
+        self.assertTrue(s.isInsideCamp(0,4)[0])
+        self.assertTrue(s.isInsideCamp(0,5)[0])
+        self.assertFalse(s.isInsideCamp(2,2)[0])
         
     def test_isTerminal(self):
         b = [[E,E,E,B,B,B,E,E,E],

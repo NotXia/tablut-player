@@ -2,15 +2,20 @@ from __future__ import annotations
 import numpy as np
 import numpy.typing as npt
 from copy import deepcopy
-from enum import IntEnum
 
 EMPTY = 0
 BLACK = 1
 WHITE = 2
 KING  = 3
+
 WHITE_WIN = 4
 BLACK_WIN = 5
 OPEN =  6
+
+UP = 7
+DOWN = 8
+RIGHT = 9
+LEFT = 10
 
 # Define the winning tiles
 ESCAPE_TILES = [
@@ -38,6 +43,9 @@ CAMP_DICT = {
     (8, 5): 0,
     (7, 4): 0
 }
+CASTLE_TILE = (4, 4)
+NEAR_CASTLE_TILES = [(3, 4), (5, 4), (4, 3), (4, 5)]
+
 
 """
     Simple class to represent the state of the game.
@@ -46,7 +54,7 @@ CAMP_DICT = {
 class State():
     def __init__(self, board: npt.NDArray[np.byte], white_turn: bool):
         self.board = board
-        self.white_turn = white_turn
+        self.is_white_turn = white_turn
 
     
     def getMoves(self)->list[State]:
@@ -54,20 +62,20 @@ class State():
         # if self.white_turn:
         for i in range(9):
             for j in range(9):
-                if (self.white_turn and (self.board[i, j] == WHITE or self.board[i, j] == KING)) or (not self.white_turn and self.board[i, j] == BLACK):
-                    for direction in [0,1,2,3]:
+                if (self.is_white_turn and (self.board[i, j] == WHITE or self.board[i, j] == KING)) or (not self.is_white_turn and self.board[i, j] == BLACK):
+                    for direction in [RIGHT, UP, LEFT, DOWN]:
                         n = self.numSteps(i, j, direction)
                         for step in range(1, n+1):
-                            new_state = State(deepcopy(self.board), not self.white_turn)
+                            new_state = State(deepcopy(self.board), not self.is_white_turn)
                             original_piece = self.board[i,j]
                             new_state.board[i, j] = EMPTY
-                            if direction == 0:
+                            if direction == RIGHT:
                                 target = (i, j + step)
-                            elif direction == 1:
+                            elif direction == UP:
                                 target = (i - step, j)
-                            elif direction == 2:
+                            elif direction == LEFT:
                                 target = (i, j - step)
-                            elif direction == 3:
+                            elif direction == DOWN:
                                 target = (i + step, j)
                             new_state.board[target[0], target[1]] = original_piece
 
@@ -106,11 +114,7 @@ class State():
 
     # Check if the cell is a camp or the castle
     def isWall(self, i, j)->bool:
-        return (i, j) in [(0, 3), (0, 4), (0, 5), (1, 4),
-                          (3, 0), (4, 0), (5, 0), (4, 1),
-                          (3, 8), (4, 8), (5, 8), (4, 7),
-                          (8, 3), (8, 4), (8, 5), (7, 4),
-                          (4, 4)]
+        return (i, j) in CAMP_DICT.keys() or (i, j) == CASTLE_TILE
     
     # Check if the pawn in position i, j is captured
     def isCaptured(self, i, j)->bool:
@@ -119,7 +123,8 @@ class State():
         if self.board[i, j] == EMPTY:
             return False
         # King captured in castle
-        elif (self.board[i, j] == KING and 
+        elif (self.board[i, j] == KING and
+            (i, j) == CASTLE_TILE and
             self.board[i+1, j] == BLACK and
             self.board[i-1, j] == BLACK and
             self.board[i, j+1] == BLACK and
@@ -128,13 +133,13 @@ class State():
             return True
         # King captured near castle
         elif (self.board[i, j] == KING and 
-              (i, j) in [(3, 4), (5, 4), (4, 3), (4, 5)]):
+              (i, j) in NEAR_CASTLE_TILES):
                 cnt_black = 0
                 for k in (+1, -1): # Coordinates increment
-                    if (i+k, j) != (4, 4):
+                    if (i+k, j) != CASTLE_TILE:
                         if self.board[i+k, j] == BLACK:
                             cnt_black += 1
-                    if (i, j+k) != (4, 4):
+                    if (i, j+k) != CASTLE_TILE:
                         if self.board[i, j+k] == BLACK:
                             cnt_black += 1
                 if cnt_black == 3:
@@ -175,77 +180,52 @@ class State():
     # Check if the cell i,j is an obstacle
     # Considering also the case of black inside the camp
     
-    def isObstacle(self, i, j, black_inside, num_camp)->bool:
+    def isObstacle(self, i, j, is_black_inside, num_camp)->bool:
         # Out of the board
         if not self.isValidCell(i, j):
             return True
             
-        #Pedone vicino
-        p = self.board[i, j]
-        if p == WHITE or p == KING or p == BLACK:
+        # Pawn on the way
+        if self.board[i, j] != EMPTY:
             return True
         
-        if not black_inside:
-            return self.isWall(i, j)
+        # In the case of black inside the camp, the camp in which the black is
+        # is not considered an obstacle
+        if is_black_inside and CAMP_DICT[(i, j)] == num_camp:
+            return False
         else:
-            # In the case of black inside the camp, the camp in which the black is
-            # is not considered an obstacle
-            if CAMP_DICT[(i, j)] == num_camp:
-                return False
-            else:
-                return self.isWall(i, j)
+            return self.isWall(i, j)
             
-    """
-        directions in a goniometric cirlce:
-        0 -> right
-        1 -> up
-        2 -> left
-        3 -> down
-    """
     # Return the number of steps that a piece can do in a direction
     
     def numSteps(self, i, j, direction):
-        black_inside, num_camp = self.insideCamp(i, j)
+        is_black_inside, num_camp = self.isInsideCamp(i, j)
         num = 1
-        if direction == 0:
-            while(not self.isObstacle(i, j + num, black_inside, num_camp)):
+        if direction == RIGHT:
+            while(not self.isObstacle(i, j + num, is_black_inside, num_camp)):
                 num +=1
-        elif direction == 1:
-            while(not self.isObstacle(i - num, j, black_inside, num_camp)):
+        elif direction == UP:
+            while(not self.isObstacle(i - num, j, is_black_inside, num_camp)):
                 num +=1
-        elif direction == 2:
-            while(not self.isObstacle(i, j - num, black_inside, num_camp)):
+        elif direction == LEFT:
+            while(not self.isObstacle(i, j - num, is_black_inside, num_camp)):
                 num +=1
-        elif direction == 3:
-            while(not self.isObstacle(i + num, j, black_inside, num_camp)):
+        elif direction == DOWN:
+            while(not self.isObstacle(i + num, j, is_black_inside, num_camp)):
                 num +=1
         return num - 1
 
     # Checks if Black is inside the camp
     # Returns True and the number of the camp if it is inside
     # Returns False and None otherwise          
-    def insideCamp(self, i, j):
+    def isInsideCamp(self, i, j):
         if self.board[i,j] != BLACK:
             return False, None
         
-        if i == 0 and j >= 3 and j <= 5:
-            return True, CAMP_DICT[(i,j)]
-        elif i == 1 and j == 4:
-            return True, CAMP_DICT[(i,j)]
-        
-        if i == 8 and j >= 3 and j <= 5:
-            return True, CAMP_DICT[(i,j)]
-        elif i == 7 and j == 4:
-            return True, CAMP_DICT[(i,j)]
-        
-        if j == 0 and i >= 3 and i <= 5:
-            return True, CAMP_DICT[(i,j)]
-        elif j == 1 and i == 4: 
-            return True, CAMP_DICT[(i,j)]
-        
-        if j == 8 and i >= 3 and i <= 5:
-            return True, CAMP_DICT[(i,j)]
-        elif j == 7 and i == 4:
+        if ((i == 0 and 3 <= j <= 5) or (i == 1 and j == 4) or
+            (i == 8 and 3 <= j <= 5) or (i == 7 and j == 4) or
+            (j == 0 and 3 <= i <= 5) or (i == 4 and j == 1) or
+            (j == 8 and 3 <= i <= 5) or (i == 4 and j == 7)):
             return True, CAMP_DICT[(i,j)]
         
         return False, None
