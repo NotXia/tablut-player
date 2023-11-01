@@ -48,6 +48,7 @@ class State():
         self.board = board
         self.white_turn = white_turn
 
+    
     def getMoves(self)->list[State]:
         res =[]
         # if self.white_turn:
@@ -71,14 +72,17 @@ class State():
                             new_state.board[target[0], target[1]] = original_piece
 
                             # Check if the  adjacent pieces are captured
-                            if new_state.isCaptured(target[0]+1,target[1]):
-                                new_state.board[target[0]+1, target[1]] = EMPTY
-                            if new_state.isCaptured(target[0]-1,target[1]):
-                                new_state.board[target[0]-1, target[1]] = EMPTY
-                            if new_state.isCaptured(target[0],target[1]+1):
-                                new_state.board[target[0], target[1]+1] = EMPTY
-                            if new_state.isCaptured(target[0],target[1]-1):
-                                new_state.board[target[0], target[1]-1] = EMPTY
+                            try:
+                                if new_state.board[target[0]+1, target[1]] != EMPTY and new_state.isCaptured(target[0]+1,target[1]):
+                                    new_state.board[target[0]+1, target[1]] = EMPTY
+                                if new_state.board[target[0]-1, target[1]] != EMPTY and new_state.isCaptured(target[0]-1,target[1]):
+                                    new_state.board[target[0]-1, target[1]] = EMPTY
+                                if new_state.board[target[0], target[1]+1] != EMPTY and new_state.isCaptured(target[0],target[1]+1):
+                                    new_state.board[target[0], target[1]+1] = EMPTY
+                                if new_state.board[target[0], target[1]-1] != EMPTY and new_state.isCaptured(target[0],target[1]-1):
+                                    new_state.board[target[0], target[1]-1] = EMPTY
+                            except IndexError:
+                                pass
                             
                             res.append(new_state)
         return res
@@ -107,7 +111,7 @@ class State():
                           (3, 8), (4, 8), (5, 8), (4, 7),
                           (8, 3), (8, 4), (8, 5), (7, 4),
                           (4, 4)]
-
+    
     # Check if the pawn in position i, j is captured
     def isCaptured(self, i, j)->bool:
         if not self.isValidCell(i, j): return False
@@ -137,6 +141,19 @@ class State():
                     return True
         # Normal capture
         else:
+            """
+                C'e un errore nella normal capture nel seguente caso:
+                E W E
+                E B E
+                E W W
+                In cui il black si è mosso spontaneamente tra i 2 white e 
+                dopodichè succede questo:
+                E W E
+                E B W
+                E W E
+                Che non è una cattura ma viene riconosciuta come tale perchè
+                il black ha un white sopra e un white sotto
+            """
             to_check = BLACK
             if self.board[i, j] == BLACK:
                 to_check = WHITE
@@ -157,13 +174,15 @@ class State():
     
     # Check if the cell i,j is an obstacle
     # Considering also the case of black inside the camp
+    
     def isObstacle(self, i, j, black_inside, num_camp)->bool:
         # Out of the board
         if not self.isValidCell(i, j):
             return True
             
         #Pedone vicino
-        if self.board[i, j] == WHITE or self.board[i, j] == KING or self.board[i, j] == BLACK:
+        p = self.board[i, j]
+        if p == WHITE or p == KING or p == BLACK:
             return True
         
         if not black_inside:
@@ -184,6 +203,7 @@ class State():
         3 -> down
     """
     # Return the number of steps that a piece can do in a direction
+    
     def numSteps(self, i, j, direction):
         black_inside, num_camp = self.insideCamp(i, j)
         num = 1
