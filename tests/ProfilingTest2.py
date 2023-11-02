@@ -10,10 +10,10 @@ E = EMPTY
 
 initial_state =  [[E,E,E,B,B,B,E,E,E],
                   [E,E,E,E,B,E,E,E,E],
-                  [E,E,E,E,W,E,E,E,E],
+                  [E,E,W,E,W,E,E,E,E],
                   [B,E,E,E,E,E,E,E,E],
                   [B,B,W,W,K,W,W,B,B],
-                  [B,E,E,E,W,E,E,E,B],
+                  [B,E,E,E,E,E,E,E,B],
                   [E,E,E,E,W,E,E,E,E],
                   [E,E,E,E,B,E,E,E,E],
                   [E,E,E,B,B,B,E,E,E]]
@@ -21,9 +21,8 @@ initial_state =  [[E,E,E,B,B,B,E,E,E],
 board = np.array(initial_state, dtype=np.byte)
 state = State(board, True)
 
-@profile
 def test_getMoves():
-    for i in range(1000):
+    for i in range(10000):
         state.getMoves()
 
 test_getMoves()

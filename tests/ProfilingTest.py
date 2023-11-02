@@ -25,7 +25,7 @@ initial_state =  [[E,E,E,B,B,B,E,E,E],
 board = np.array(initial_state, dtype=np.byte)
 state = State(board, True)
 
-for i in range(1000):
+for i in range(10000):
     state.getMoves()
 
 profiler.stop()
