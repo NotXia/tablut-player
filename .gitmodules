@@ -1,0 +1,3 @@
+[submodule "tablut-server"]
+	path = tablut-server
+	url = https://github.com/AGalassi/TablutCompetition
