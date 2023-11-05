@@ -326,3 +326,6 @@ class State():
 
     def evaluate(self)->float:
         raise NotImplementedError()
+
+    def __str__(self):
+        return f"WhiteTurn = {self.is_white_turn}\n {str(self.board)}"
