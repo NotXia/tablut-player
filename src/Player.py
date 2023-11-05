@@ -4,6 +4,7 @@ import json
 import sys
 import numpy as np
 from State import BLACK, WHITE, EMPTY, KING, State
+from Tree import Tree
 
 def recvall(sock, n):
     # Funzione ausiliaria per ricevere n byte o restituire None se viene raggiunta la fine del file (EOF)
@@ -35,7 +36,13 @@ def main():
         player_name = 'TheCatIsOnTheTablut'
         sendToServer(player_name, sock)
 
+        game_tree = None
+        my_color = WHITE if color == "white" else BLACK
+
         # Ciclo infinito di ricezione stato e invio mossa
+        """
+        TODO handle game end
+        """
         test = True
         while True:
             # Ricevi la lunghezza dei dati di stato corrente dal server e poi i dati stessi
@@ -46,13 +53,15 @@ def main():
             json_current_state_server = json.loads(current_state_server_bytes)
             board = json_current_state_server['board']
             turn = json_current_state_server['turn']
+            curr_turn = WHITE if turn.lower() == "white" else BLACK
 
             # Converti nel nostro stato
             state = []
             for row in board:
                 r = []
                 for col in row:
-                    if col == 'EMPTY':
+                    col = col.upper()
+                    if col == 'EMPTY' or col == "THRONE":
                         r.append(EMPTY)
                     elif col == 'BLACK':
                         r.append(BLACK)
@@ -61,19 +70,24 @@ def main():
                     elif col == 'KING':
                         r.append(KING)
                     else:
+                        print(board)
                         raise Exception("Stato non riconosciuto")
                 state.append(r)
             s = State(np.array(state, dtype=np.byte), turn == 'WHITE')
 
+            if curr_turn != my_color:
+                continue
+
+            if game_tree is None:
+                game_tree = Tree(s, my_color)
+            else:
+                game_tree.applyOpponentMove(s)
 
             # CALCOLA MOSSA
             # Assunzione mossa ((from), (to))
-            if test:
-                best_move = ((0, 3), (1, 3))
-                test = not test
-            else:
-                best_move = ((1, 3), (0, 3))
-                test = not test
+            best_move = game_tree.decide(0)
+            print("best", best_move)
+
 
             # Converte la mossa del giocatore nel formato richiesto dal server e la invia
             mossa = {

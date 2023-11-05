@@ -1,8 +1,8 @@
 from __future__ import annotations
 import numpy as np
 import numpy.typing as npt
-from copy import deepcopy
 from typing import Generator
+import random
 
 EMPTY = 0
 BLACK = 1
@@ -119,16 +119,16 @@ class State():
         self.board[start[0], start[1]] = EMPTY
 
         # Checks if the adjacent pieces have been captured
-        if self.board.isCaptured(end[0]+1,end[1], to_filter_axis=VERTICAL):
+        if self.isCaptured(end[0]+1,end[1], to_filter_axis=VERTICAL):
             captured.append( ((end[0]+1, end[1]), self.board[end[0]+1, end[1]]) )
             self.board[end[0]+1, end[1]] = EMPTY
-        if self.board.isCaptured(end[0]-1,end[1], to_filter_axis=VERTICAL):
+        if self.isCaptured(end[0]-1,end[1], to_filter_axis=VERTICAL):
             captured.append( ((end[0]-1, end[1]), self.board[end[0]-1, end[1]]) )
             self.board[end[0]-1, end[1]] = EMPTY
-        if self.board.isCaptured(end[0],end[1]+1, to_filter_axis=HORIZONTAL):
+        if self.isCaptured(end[0],end[1]+1, to_filter_axis=HORIZONTAL):
             captured.append( ((end[0], end[1]+1), self.board[end[0], end[1]+1]) )
             self.board[end[0], end[1]+1] = EMPTY
-        if self.board.isCaptured(end[0],end[1]-1, to_filter_axis=HORIZONTAL):
+        if self.isCaptured(end[0],end[1]-1, to_filter_axis=HORIZONTAL):
             captured.append( ((end[0], end[1]-1), self.board[end[0], end[1]-1]) )
             self.board[end[0], end[1]-1] = EMPTY
 
@@ -320,7 +320,7 @@ class State():
         
         # In the case of black inside the camp, the camp in which the black is
         # is not considered an obstacle
-        if num_camp is not None and CAMP_DICT[(i, j)] == num_camp:
+        if (num_camp is not None) and CAMP_DICT.get((i, j), None) == num_camp:
             return False
         else:
             return self.isWall(i, j)
@@ -388,7 +388,7 @@ class State():
     
 
     def heuristics(self, player_color:BLACK|WHITE)->float:
-        return 0
+        return random.random()
 
 
     def __str__(self):
