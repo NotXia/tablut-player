@@ -1,10 +1,10 @@
 import socket
 import struct
 import json
-import sys
 import numpy as np
 from State import BLACK, WHITE, EMPTY, KING, State
 from Tree import Tree
+import argparse
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
@@ -82,19 +82,17 @@ def sendMoveToServer(sock, start_pos, end_pos, my_color):
 
 
 if __name__ == "__main__":
-    my_color = sys.argv[1].lower()
-    if my_color == 'white':
-        my_color = WHITE
-    elif my_color == 'black':
-        my_color = BLACK
-    else:
-        raise Exception("Devi giocare come bianco o nero")
-    ip_addr = sys.argv[2]
+    parser = argparse.ArgumentParser(prog="Best Tablut player of the world (when it doesn't lose)")
+    parser.add_argument("-i", "--ip", type=str, default="localhost", help="IP address of the hosting server")
+    parser.add_argument("-p", "--port", type=str, default=None, help="Port of the hosting server")
+    parser.add_argument("-c", "--color", type=str.lower, required=True, choices=["white", "black"], help="Color of the player")
+    args = parser.parse_args()
 
+    my_color = WHITE if args.color == "white" else BLACK
     player_name = 'TheCatIsOnTheTablut'
     game_tree = None
 
-    sock = initServerConnection(player_name, ip_addr)
+    sock = initServerConnection(player_name, args.ip, args.port)
 
 
     # Ciclo infinito di ricezione stato e invio mossa
