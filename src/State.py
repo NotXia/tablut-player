@@ -2,6 +2,7 @@ from __future__ import annotations
 import numpy as np
 import numpy.typing as npt
 from copy import deepcopy
+from typing import Generator
 
 EMPTY = 0
 BLACK = 1
@@ -61,24 +62,21 @@ class State():
 
     
     """
-        Determines the following board configurations from the current state.
+        Determines the possible allowed moves from the current state of the booard.
 
         Returns
         -------
-            new_states : list[State]
+            new_moves : Generator[tuple[tuple[int, int], tuple[int, int]]]
+                Generator that returns a tuple (from, start).
+                `from` and `start` are coordinates (i, j).
     """
-    def getMoves(self)->list[State]:
-        res =[]
-        # if self.white_turn:
+    def getMoves(self) -> Generator[tuple[tuple[int, int], tuple[int, int]]]:
         for i in range(9):
             for j in range(9):
                 if (self.is_white_turn and (self.board[i, j] == WHITE or self.board[i, j] == KING)) or (not self.is_white_turn and self.board[i, j] == BLACK):
                     for direction in [RIGHT, UP, LEFT, DOWN]:
                         n = self.numSteps(i, j, direction)
                         for step in range(1, n+1):
-                            new_state = State(deepcopy(self.board), not self.is_white_turn)
-                            original_piece = self.board[i,j]
-                            new_state.board[i, j] = EMPTY
                             if direction == RIGHT:
                                 target = (i, j + step)
                             elif direction == UP:
@@ -87,21 +85,89 @@ class State():
                                 target = (i, j - step)
                             elif direction == DOWN:
                                 target = (i + step, j)
-                            new_state.board[target[0], target[1]] = original_piece
-
-                            # Check if the  adjacent pieces are captured
-                            if new_state.isCaptured(target[0]+1,target[1], to_filter_axis=VERTICAL):
-                                new_state.board[target[0]+1, target[1]] = EMPTY
-                            if new_state.isCaptured(target[0]-1,target[1], to_filter_axis=VERTICAL):
-                                new_state.board[target[0]-1, target[1]] = EMPTY
-                            if new_state.isCaptured(target[0],target[1]+1, to_filter_axis=HORIZONTAL):
-                                new_state.board[target[0], target[1]+1] = EMPTY
-                            if new_state.isCaptured(target[0],target[1]-1, to_filter_axis=HORIZONTAL):
-                                new_state.board[target[0], target[1]-1] = EMPTY
                             
-                            res.append(new_state)
-        return res
+                            if self.isValidCell(target[0], target[1]):
+                                yield ((i, j), target)
     
+
+    """
+        Applies a move in the board.
+        It is assumed that the move is valid.
+
+        Parameters
+        ----------
+            start : tuple[int, int]
+                Coordinates of the starting position.
+
+            end : tuple[int, int]
+                Coordinates of the destination.
+                
+        Returns
+        -------
+            captures : list[tuple[tuple[int, int], BLACK|WHITE|KING]]
+                List of the pawns captured with this move.
+                Each element has format ((i, j), pawn).
+                `(i, j)` are the coordinates of the captured pawn.
+                `pawn` is the type of pawn captured.
+                Useful to undo this move.
+    """
+    def applyMove(self, start:tuple[int, int], end:tuple[int, int]) -> list[tuple[tuple[int, int], BLACK|WHITE|KING]]:
+        captured = []
+        
+        # Applies move
+        self.board[end[0], end[1]] = self.board[start[0], start[1]]
+        self.board[start[0], start[1]] = EMPTY
+
+        # Checks if the adjacent pieces have been captured
+        if self.board.isCaptured(end[0]+1,end[1], to_filter_axis=VERTICAL):
+            captured.append( ((end[0]+1, end[1]), self.board[end[0]+1, end[1]]) )
+            self.board[end[0]+1, end[1]] = EMPTY
+        if self.board.isCaptured(end[0]-1,end[1], to_filter_axis=VERTICAL):
+            captured.append( ((end[0]-1, end[1]), self.board[end[0]-1, end[1]]) )
+            self.board[end[0]-1, end[1]] = EMPTY
+        if self.board.isCaptured(end[0],end[1]+1, to_filter_axis=HORIZONTAL):
+            captured.append( ((end[0], end[1]+1), self.board[end[0], end[1]+1]) )
+            self.board[end[0], end[1]+1] = EMPTY
+        if self.board.isCaptured(end[0],end[1]-1, to_filter_axis=HORIZONTAL):
+            captured.append( ((end[0], end[1]-1), self.board[end[0], end[1]-1]) )
+            self.board[end[0], end[1]-1] = EMPTY
+
+        self.is_white_turn = not self.is_white_turn
+
+        return captured
+
+
+    """
+        Reverts a move and restores captured pawns.
+        It is assumed that the parameters are correct.
+        
+        Parameters
+        ----------
+            old_start : tuple[int, int]
+                Old starting point of the move to revert.
+                E.g., if the move was ((0, 0), (1, 0)), this parameters is (0, 0).
+                
+            old_end : tuple[int, int]
+                Old destination of the move to revert.
+                E.g., if the move was ((0, 0), (1, 0)), this parameters is (1, 0).
+
+            captured : list[tuple[tuple[int, int], BLACK|WHITE|KING]]
+                List of pawns the move to revert captured.
+                They are restored.
+    """
+    def revertMove(self, old_start:tuple[int, int], old_end:tuple[int, int], captured:list[tuple[tuple[int, int], BLACK|WHITE|KING]]):
+        # Reverts move
+        self.board[old_start[0], old_start[1]] = self.board[old_end[0], old_end[1]]
+        self.board[old_end[0], old_end[1]] = EMPTY
+        
+        # Reverts captured pawn
+        for el in captured:
+            pos = el[0]
+            pawn = el[1]
+            self.board[pos[0], pos[1]] = pawn
+
+        self.is_white_turn = not self.is_white_turn
+
 
     """
         Determines the status of the current board.
@@ -321,11 +387,32 @@ class State():
         return num - 1
     
 
-    def H(self)->float:
-        raise NotImplementedError()
+    def heuristics(self, player_color:BLACK|WHITE)->float:
+        return 0
 
-    def evaluate(self)->float:
-        raise NotImplementedError()
 
     def __str__(self):
         return f"WhiteTurn = {self.is_white_turn}\n {str(self.board)}"
+
+    """
+        Determines the score of the current configuration.
+
+        Parameters
+        ----------
+            player_color : BLACK|WHITE
+                For which player the score is computed.
+        
+        Returns
+        -------
+            score : float
+                Score or heuristic of the board.
+    """
+    def evaluate(self, player_color:BLACK|WHITE)->float:
+        game_state = self.getGameState()
+        
+        if game_state == BLACK_WIN: 
+           return 1 if player_color == BLACK else -1 
+        elif game_state == WHITE:
+            return 1 if player_color == WHITE else -1
+        else:
+            return self.heuristics(player_color)
