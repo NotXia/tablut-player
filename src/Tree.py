@@ -1,4 +1,4 @@
-from State import State, OPEN, WHITE, BLACK
+from State import State, OPEN, WHITE, BLACK, MAX_SCORE, MIN_SCORE
 import numpy as np
 from TreeNode import TreeNode
 
@@ -28,7 +28,13 @@ class Tree():
     """
     def decide(self, timeout):
         # TODO Handle timeout
-        best_score = self.minimax(self.root, 3, -np.inf, +np.inf)
+
+        if self.root.score == MAX_SCORE:
+            # A winning move is already known, minimax is not necessary.
+            # This also prevents possible loops.
+            best_score = MAX_SCORE
+        else:
+            best_score = self.minimax(self.root, 3, -np.inf, +np.inf)
         
         for child in self.root.children:
             if child.score == best_score:

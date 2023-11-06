@@ -4,6 +4,9 @@ import numpy.typing as npt
 from typing import Generator
 import random
 
+MAX_SCORE = 1
+MIN_SCORE = -1
+
 EMPTY = 0
 BLACK = 1
 WHITE = 2
@@ -411,8 +414,8 @@ class State():
         game_state = self.getGameState()
         
         if game_state == BLACK_WIN: 
-           return 1 if player_color == BLACK else -1 
-        elif game_state == WHITE:
-            return 1 if player_color == WHITE else -1
+           return MAX_SCORE if player_color == BLACK else MIN_SCORE
+        elif game_state == WHITE_WIN:
+            return MAX_SCORE if player_color == WHITE else MIN_SCORE
         else:
             return self.heuristics(player_color)
