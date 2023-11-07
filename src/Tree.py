@@ -1,16 +1,21 @@
 from State import State, OPEN, WHITE, BLACK, MAX_SCORE, MIN_SCORE
 import numpy as np
 from TreeNode import TreeNode
+import logging
 
 
 """
     Class that represents the whole game tree.
 """
 class Tree():
-    def __init__(self, initial_state, player_color):
+    def __init__(self, initial_state, player_color, debug=False):
         self.state: State = initial_state
         self.player_color = player_color
         self.root = TreeNode(None, None, None)
+
+        self.__debug = debug
+        if self.__debug:
+            self.__explored_nodes = 0
 
 
     """
@@ -28,6 +33,8 @@ class Tree():
     """
     def decide(self, timeout):
         # TODO Handle timeout
+        if self.__debug: 
+            self.__explored_nodes = 0
 
         if self.root.score == MAX_SCORE:
             # A winning move is already known, minimax is not necessary.
@@ -36,6 +43,9 @@ class Tree():
         else:
             best_score = self.minimax(self.root, 3, -np.inf, +np.inf)
         
+        if self.__debug:
+            logging.debug(f"Explored nodes: {self.__explored_nodes}")
+
         for child in self.root.children:
             if child.score == best_score:
                 self.root = child
@@ -88,6 +98,9 @@ class Tree():
                 Best children's score found.
     """
     def minimax(self, tree_node:TreeNode, max_depth:int, alpha:float, beta:float):
+        if self.__debug:
+            self.__explored_nodes += 1
+
         if self.state.getGameState() != OPEN or max_depth == 0:
             eval = self.state.evaluate(self.player_color)
         else:

@@ -86,6 +86,7 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--ip", type=str, default="localhost", help="IP address of the hosting server")
     parser.add_argument("-p", "--port", type=str, default=None, help="Port of the hosting server")
     parser.add_argument("-c", "--color", type=str.lower, required=True, choices=["white", "black"], help="Color of the player")
+    parser.add_argument("--debug", action="store_true", default=False, help="Enable debug logs")
     args = parser.parse_args()
 
     my_color = WHITE if args.color == "white" else BLACK
@@ -124,7 +125,7 @@ if __name__ == "__main__":
 
         if game_tree is None:
             # Tree created for the first time
-            game_tree = Tree(curr_state, my_color)
+            game_tree = Tree(curr_state, my_color, debug=args.debug)
         else:
             game_tree.applyOpponentMove(curr_state)
 
