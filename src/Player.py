@@ -5,6 +5,7 @@ import numpy as np
 from State import BLACK, WHITE, EMPTY, KING, State
 from Tree import Tree
 import argparse
+import time
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
@@ -86,6 +87,7 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--ip", type=str, default="localhost", help="IP address of the hosting server")
     parser.add_argument("-p", "--port", type=str, default=None, help="Port of the hosting server")
     parser.add_argument("-c", "--color", type=str.lower, required=True, choices=["white", "black"], help="Color of the player")
+    parser.add_argument("-t", "--timeout", type=int, default=60, help="Time available to make a decision")
     parser.add_argument("--debug", action="store_true", default=False, help="Enable debug logs")
     args = parser.parse_args()
 
@@ -129,7 +131,11 @@ if __name__ == "__main__":
         else:
             game_tree.applyOpponentMove(curr_state)
 
-        start_pos, end_pos = game_tree.decide(0)
-        logging.info(f"Best move {start_pos} -> {end_pos}")
+        if args.debug:
+            start_time = time.time()
+        start_pos, end_pos, score = game_tree.decide(0)
+        if args.debug:
+            end_time = time.time()
+            logging.debug(f"[{end_time-start_time:.2f} s] Best move {start_pos} -> {end_pos} ({score:.3f})")
 
         sendMoveToServer(sock, start_pos, end_pos, my_color)

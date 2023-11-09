@@ -28,8 +28,14 @@ class Tree():
 
         Returns
         -------
-            best_move : tuple[tuple[int, int], tuple[int, int]]
-                Move in the format (from, to).
+            from : tuple[int, int]
+                Starting coordinates of the move.
+
+            to : tuple[int, int]
+                Ending coordinates of the move.
+                
+            best_score : float
+                Score of the chosen move.
     """
     def decide(self, timeout):
         # TODO Handle timeout
@@ -50,7 +56,7 @@ class Tree():
             if child.score == best_score:
                 self.root = child
                 self.state.applyMove(child.start, child.end)
-                return (child.start, child.end)
+                return child.start, child.end, best_score
         
 
     """
