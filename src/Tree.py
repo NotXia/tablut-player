@@ -104,18 +104,11 @@ class Tree():
         if self.state.getGameState() != OPEN or max_depth == 0:
             eval = self.state.evaluate(self.player_color)
         else:
-            # Generates the children of the node, if needed
-            # TODO As `getMoves` is a generator, this could be optimized
-            if len(tree_node.children) == 0:
-                for start, end in self.state.getMoves():
-                    child = TreeNode(start, end, tree_node)
-                    tree_node.children.append( child )
-
             if ((self.state.is_white_turn and self.player_color == WHITE) or
                 (not self.state.is_white_turn and self.player_color == BLACK)):
                 # Max
                 eval = -np.inf
-                for child in tree_node.children:
+                for child in tree_node.getChildren(self.state):
                     captured = self.state.applyMove(child.start, child.end)
                     eval = max(eval, self.minimax(child, max_depth-1, alpha, beta))
                     self.state.revertMove(child.start, child.end, captured)
@@ -124,7 +117,7 @@ class Tree():
             else:
                 # Min
                 eval = np.inf
-                for child in tree_node.children:
+                for child in tree_node.getChildren(self.state):
                     captured = self.state.applyMove(child.start, child.end)
                     eval = min(eval, self.minimax(child, max_depth-1, alpha, beta))
                     self.state.revertMove(child.start, child.end, captured)
