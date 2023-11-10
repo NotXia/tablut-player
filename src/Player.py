@@ -37,13 +37,13 @@ def fromIndexToLetters(position):
     Opens the connection to the server and
     does the initial setup.
 """
-def initServerConnection(player_name, ip_addr="localhost", port=None):
+def initServerConnection(player_name, player_color, ip_addr="localhost", port=None):
     # Crea un socket TCP
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # Imposta l'indirizzo del server in base al colore del giocatore
-    if my_color == WHITE:
+    if player_color == WHITE:
         server_address = (ip_addr, port if port is not None else 5800)
-    elif my_color == BLACK:
+    elif player_color == BLACK:
         server_address = (ip_addr, port if port is not None else 5801)
     
     # Connessione al server
@@ -81,61 +81,71 @@ def sendMoveToServer(sock, start_pos, end_pos, my_color):
     }
     sendToServer(json.dumps(mossa), sock)
 
+"""
+    Parses the board received from the server into our format.
+"""
+def parseServerBoard(board):
+    curr_board = np.zeros((len(board), len(board[0])), dtype=np.byte)
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(prog="Best Tablut player of the world (when it doesn't lose)")
-    parser.add_argument("-i", "--ip", type=str, default="localhost", help="IP address of the hosting server")
-    parser.add_argument("-p", "--port", type=str, default=None, help="Port of the hosting server")
-    parser.add_argument("-c", "--color", type=str.lower, required=True, choices=["white", "black"], help="Color of the player")
-    parser.add_argument("-t", "--timeout", type=int, default=60, help="Time available to make a decision")
-    parser.add_argument("--debug", action="store_true", default=False, help="Enable debug logs")
-    args = parser.parse_args()
+    for i in range(len(board)):
+        for j in range(len(board[i])):
+            col = board[i][j].upper()
+            if col == 'EMPTY' or col == "THRONE":
+                curr_board[i, j] = EMPTY
+            elif col == 'BLACK':
+                curr_board[i, j] = BLACK
+            elif col == 'WHITE':
+                curr_board[i, j] = WHITE
+            elif col == 'KING':
+                curr_board[i, j] = KING
+            else:
+                logging.error(f"Unknown board value\n{curr_board}")
+                raise Exception("Stato non riconosciuto")
+            
+    return curr_board
 
-    my_color = WHITE if args.color == "white" else BLACK
-    player_name = 'TheCatIsOnTheTablut'
-    game_tree = None
 
-    sock = initServerConnection(player_name, args.ip, args.port)
+class Player:
+    def __init__(self, 
+        my_color: WHITE|BLACK,
+        timeout = 60,
+        name = "TheCatIsOnTheTablut",
+        server_ip = "localhost",
+        server_port = None,
+        debug = False
+    ):
+        self.my_color = my_color
+        self.name = name
+        self.sock = initServerConnection(name, my_color, server_ip, server_port)
+        self.timeout = timeout
+        self.debug = debug
+
+        self.game_tree = None
 
 
-    # Ciclo infinito di ricezione stato e invio mossa
-    # TODO handle game end
-    while True:
-        turn, board = receiveStateFromServer(sock)
-        curr_turn = WHITE if turn == "white" else BLACK
+    def play(self):
+        # TODO handle game end
+        while True:
+            turn, board = receiveStateFromServer(self.sock)
+            curr_turn = WHITE if turn == "white" else BLACK
 
-        if curr_turn != my_color:
-            continue
+            if curr_turn != self.my_color:
+                continue
 
-        # Converti nel nostro stato
-        curr_board = np.zeros((len(board), len(board[0])), dtype=np.byte)
-        for i in range(len(board)):
-            for j in range(len(board[i])):
-                col = board[i][j].upper()
-                if col == 'EMPTY' or col == "THRONE":
-                    curr_board[i, j] = EMPTY
-                elif col == 'BLACK':
-                    curr_board[i, j] = BLACK
-                elif col == 'WHITE':
-                    curr_board[i, j] = WHITE
-                elif col == 'KING':
-                    curr_board[i, j] = KING
-                else:
-                    logging.error(f"Unknown board value\n{curr_board}")
-                    raise Exception("Stato non riconosciuto")
-        curr_state = State(curr_board, curr_turn == WHITE)
+            curr_board = parseServerBoard(board)
+            curr_state = State(curr_board, curr_turn == WHITE)
 
-        if game_tree is None:
-            # Tree created for the first time
-            game_tree = Tree(curr_state, my_color, debug=args.debug)
-        else:
-            game_tree.applyOpponentMove(curr_state)
+            if self.game_tree is None:
+                # Tree created for the first time
+                self.game_tree = Tree(curr_state, self.my_color, debug=self.debug)
+            else:
+                self.game_tree.applyOpponentMove(curr_state)
 
-        if args.debug:
-            start_time = time.time()
-        start_pos, end_pos, score = game_tree.decide(0)
-        if args.debug:
-            end_time = time.time()
-            logging.debug(f"[{end_time-start_time:.2f} s] Best move {start_pos} -> {end_pos} ({score:.3f})")
+            if self.debug:
+                start_time = time.time()
+            start_pos, end_pos, score = self.game_tree.decide(0)
+            if self.debug:
+                end_time = time.time()
+                logging.debug(f"[{end_time-start_time:.2f} s] Best move {start_pos} -> {end_pos} ({score:.3f})")
 
-        sendMoveToServer(sock, start_pos, end_pos, my_color)
+            sendMoveToServer(self.sock, start_pos, end_pos, self.my_color)
