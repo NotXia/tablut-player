@@ -248,14 +248,13 @@ class State():
         if self.board[i, j] == EMPTY:
             return False
         # King captured in castle
-        elif (self.board[i, j] == KING and
-            (i, j) == CASTLE_TILE and
-            self.board[i+1, j] == BLACK and
-            self.board[i-1, j] == BLACK and
-            self.board[i, j+1] == BLACK and
-            self.board[i, j-1] == BLACK
-            ):
-            return True
+        elif (self.board[i, j] == KING and (i, j) == CASTLE_TILE):
+            return (
+                self.board[i+1, j] == BLACK and
+                self.board[i-1, j] == BLACK and
+                self.board[i, j+1] == BLACK and
+                self.board[i, j-1] == BLACK
+            )
         # King captured near castle
         elif (self.board[i, j] == KING and (i, j) in NEAR_CASTLE_TILES):
             cnt_black = 0

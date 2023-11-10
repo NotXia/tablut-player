@@ -137,5 +137,53 @@ class TestState(unittest.TestCase):
         self.assertFalse(s.isCaptured(0,0, to_filter_axis=VERTICAL))
         self.assertFalse(s.isCaptured(0,0, to_filter_axis=HORIZONTAL))
 
+        b = [[E,E,E,B,B,B,E,E,E],
+             [E,E,E,E,B,E,E,E,E],
+             [E,E,E,E,E,W,E,E,E],
+             [E,E,E,B,B,B,E,E,E],
+             [B,B,W,W,K,B,W,B,B],
+             [B,E,E,E,B,E,E,E,B],
+             [E,E,E,E,W,E,E,E,E],
+             [E,E,E,E,B,E,E,E,E],
+             [E,E,E,B,B,B,E,E,E]]
+        s = State(np.array(b, dtype=np.byte), True)
+        self.assertFalse(s.isCaptured(4, 4))
+
+        b = [[E,E,E,B,B,B,E,E,E],
+             [E,E,E,E,B,E,E,E,E],
+             [E,E,E,E,E,W,E,E,E],
+             [E,E,E,B,B,B,E,E,E],
+             [B,B,W,B,K,B,W,B,B],
+             [B,E,E,E,B,E,E,E,B],
+             [E,E,E,E,W,E,E,E,E],
+             [E,E,E,E,B,E,E,E,E],
+             [E,E,E,B,B,B,E,E,E]]
+        s = State(np.array(b, dtype=np.byte), True)
+        self.assertTrue(s.isCaptured(4, 4))
+
+        b = [[E,E,E,B,B,B,E,E,E],
+             [E,E,E,E,B,E,E,E,E],
+             [E,E,E,E,E,W,E,E,E],
+             [E,E,E,B,K,B,E,E,E],
+             [B,B,W,W,E,B,W,B,B],
+             [B,E,E,E,B,E,E,E,B],
+             [E,E,E,E,W,E,E,E,E],
+             [E,E,E,E,B,E,E,E,E],
+             [E,E,E,B,B,B,E,E,E]]
+        s = State(np.array(b, dtype=np.byte), True)
+        self.assertFalse(s.isCaptured(3, 4))
+
+        b = [[E,E,E,B,B,B,E,E,E],
+             [E,E,E,E,B,E,E,E,E],
+             [E,E,E,E,B,W,E,E,E],
+             [E,E,E,B,K,B,E,E,E],
+             [B,B,W,W,E,B,W,B,B],
+             [B,E,E,E,B,E,E,E,B],
+             [E,E,E,E,W,E,E,E,E],
+             [E,E,E,E,B,E,E,E,E],
+             [E,E,E,B,B,B,E,E,E]]
+        s = State(np.array(b, dtype=np.byte), True)
+        self.assertTrue(s.isCaptured(3, 4))
+
 if __name__ == "__main__":
     unittest.main()
