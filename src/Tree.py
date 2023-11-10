@@ -69,15 +69,18 @@ class Tree():
                 State of the board after the opponent's move.
     """
     def applyOpponentMove(self, next_state: State):
-        for child in self.root.children:
-            captured = self.state.applyMove(child.start, child.end)
-            if np.all(self.state.board == next_state.board):
-                # Move found, update the root and
-                # leave the board status as is (do not need to revert).
-                self.root = child
-                return
-            self.state.revertMove(child.start, child.end, captured)
-
+        try:
+            for child in self.root.children:
+                captured = self.state.applyMove(child.start, child.end)
+                if np.all(self.state.board == next_state.board):
+                    # Move found, update the root and
+                    # leave the board status as is (do not need to revert).
+                    self.root = child
+                    return
+                self.state.revertMove(child.start, child.end, captured)
+        except:
+            logging.error("Error in applying opponent move")
+        
         # Move not found among the children of the root,
         # the current tree is deleted.
         self.state = next_state
