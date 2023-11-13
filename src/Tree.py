@@ -2,6 +2,7 @@ from State import State, OPEN, WHITE, BLACK, MAX_SCORE, MIN_SCORE
 import numpy as np
 from TreeNode import TreeNode
 import logging
+import time
 
 
 """
@@ -24,7 +25,7 @@ class Tree():
         Parameters
         ----------
             timeout : float
-                Timestamp of when the execution must end.
+                Seconds available to make a choice.
 
         Returns
         -------
@@ -38,26 +39,41 @@ class Tree():
                 Score of the chosen move.
     """
     def decide(self, timeout):
-        # TODO Handle timeout
         if self.__debug: 
             self.__explored_nodes = 0
-
+        
+        end_timestamp = time.time() + timeout
+        best_child = None
+        
         if self.root.score == MAX_SCORE:
             # A winning move is already known, minimax is not necessary.
             # This also prevents possible loops.
             best_score = MAX_SCORE
+            
+            for child in self.root.children:    
+                if child.score == best_score:
+                    best_child = child
+                    break
         else:
-            best_score = self.minimax(self.root, 3, -np.inf, +np.inf)
+            depth = 1
+            while time.time() < end_timestamp:
+                curr_best_score, curr_best_child = self.minimax(self.root, depth, -np.inf, +np.inf, end_timestamp)
+                if curr_best_score is None or curr_best_child is None:
+                    break
+                best_score, best_child = curr_best_score, curr_best_child
+                if best_child.score != best_score:
+                    logging.error("ERROR, returned the wrong child")
+                depth += 1
         
         if self.__debug:
-            logging.debug(f"Explored nodes: {self.__explored_nodes}")
+            logging.debug(f"Explored depth = {depth}")
+            logging.debug(f"Explored nodes: {self.__explored_nodes}, {self.__explored_nodes/(timeout):.2f} nodes/s")
 
-        for child in self.root.children:
-            if child.score == best_score:
-                self.root = child
-                self.state.applyMove(child.start, child.end)
-                return child.start, child.end, best_score
         
+        self.root = best_child
+        self.state.applyMove(best_child.start, best_child.end)
+        return best_child.start, best_child.end, best_score
+    
 
     """
         Moves the root of the tree to the node containing the opponent's move.
@@ -105,10 +121,19 @@ class Tree():
         -------
             best_score : float
                 Best children's score found.
+
+            best_child : TreeNode
+                Best children's score found.
     """
-    def minimax(self, tree_node:TreeNode, max_depth:int, alpha:float, beta:float):
+    def minimax(self, 
+        tree_node:TreeNode, 
+        max_depth:int, 
+        alpha:float, beta:float, 
+        timeout_timestamp:float) -> tuple[float|None, TreeNode|None]:
         if self.__debug:
             self.__explored_nodes += 1
+
+        best_child = None
 
         if self.state.getGameState() != OPEN or max_depth == 0:
             eval = self.state.evaluate(self.player_color)
@@ -119,20 +144,44 @@ class Tree():
                 eval = -np.inf
                 for child in tree_node.getChildren(self.state):
                     captured = self.state.applyMove(child.start, child.end)
-                    eval = max(eval, self.minimax(child, max_depth-1, alpha, beta))
+                    
+                    if time.time() >= timeout_timestamp:
+                        # Times up
+                        # Drop the currently generated children 
+                        # as the generation is not complete
+                        tree_node.children = None
+                        return None, None
+
+                    eval_minimax, _ = self.minimax(child, max_depth-1, alpha, beta, timeout_timestamp)
+                    if eval_minimax is None: return None, None # Times up
+                    
+                    eval = max(eval, eval_minimax)
+                    if eval > alpha: # Also saves best move for the choice at the root
+                        alpha = eval
+                        best_child = child
+
                     self.state.revertMove(child.start, child.end, captured)
-                    alpha = max(eval, alpha)
                     if eval >= beta: break # cutoff
             else:
                 # Min
                 eval = np.inf
                 for child in tree_node.getChildren(self.state):
                     captured = self.state.applyMove(child.start, child.end)
-                    eval = min(eval, self.minimax(child, max_depth-1, alpha, beta))
-                    self.state.revertMove(child.start, child.end, captured)
+
+                    if time.time() >= timeout_timestamp:
+                        # Times up
+                        tree_node.children = None
+                        return None, None
+
+                    eval_minimax, _ = self.minimax(child, max_depth-1, alpha, beta, timeout_timestamp)
+                    if eval_minimax is None: return None, None # Times up
+
+                    eval = min(eval, eval_minimax)
                     beta = min(eval, beta)
+
+                    self.state.revertMove(child.start, child.end, captured)
                     if eval <= alpha: break # cutoff
 
         tree_node.score = eval
-        return eval
+        return eval, best_child
         

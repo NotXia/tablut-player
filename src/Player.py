@@ -4,7 +4,6 @@ import json
 import numpy as np
 from State import BLACK, WHITE, EMPTY, KING, State
 from Tree import Tree
-import argparse
 import time
 import logging
 logging.basicConfig(level=logging.DEBUG)
@@ -109,6 +108,7 @@ class Player:
     def __init__(self, 
         my_color: WHITE|BLACK,
         timeout = 60,
+        timeout_tol = 1,
         name = "TheCatIsOnTheTablut",
         server_ip = "localhost",
         server_port = None,
@@ -118,6 +118,7 @@ class Player:
         self.name = name
         self.sock = initServerConnection(name, my_color, server_ip, server_port)
         self.timeout = timeout
+        self.timeout_tol = timeout_tol
         self.debug = debug
 
         self.game_tree = None
@@ -143,7 +144,7 @@ class Player:
 
             if self.debug:
                 start_time = time.time()
-            start_pos, end_pos, score = self.game_tree.decide(0)
+            start_pos, end_pos, score = self.game_tree.decide(self.timeout-self.timeout_tol)
             if self.debug:
                 end_time = time.time()
                 logging.debug(f"[{end_time-start_time:.2f} s] Best move {start_pos} -> {end_pos} ({score:.3f})")

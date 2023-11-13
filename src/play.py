@@ -9,6 +9,7 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--port", type=str, default=None, help="Port of the hosting server")
     parser.add_argument("-c", "--color", type=str.lower, required=True, choices=["white", "black"], help="Color of the player")
     parser.add_argument("-t", "--timeout", type=int, default=60, help="Time available to make a decision")
+    parser.add_argument("--tol", type=int, default=1, help="Tolerance on the timeout")
     parser.add_argument("--debug", action="store_true", default=False, help="Enable debug logs")
     args = parser.parse_args()
 
@@ -18,6 +19,7 @@ if __name__ == "__main__":
     player = Player(
         my_color = my_color,
         timeout = args.timeout,
+        timeout_tol = args.tol,
         server_ip = args.ip,
         server_port = args.port,
         debug = args.debug,
