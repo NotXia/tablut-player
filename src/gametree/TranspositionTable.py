@@ -1,4 +1,9 @@
 from .State import State
+import cython
+import logging
+logger = logging.getLogger(__name__)
+if not cython.compiled: logger.warn(f"Using non-compiled {__file__} module")
+
 
 EXACT = 0
 LOWERBOUND = 1

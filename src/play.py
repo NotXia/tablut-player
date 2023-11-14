@@ -1,6 +1,9 @@
 import argparse
 from Player import Player
 from gametree.State import BLACK, WHITE
+import logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 if __name__ == "__main__":

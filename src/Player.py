@@ -6,7 +6,7 @@ from gametree.State import BLACK, WHITE, EMPTY, KING, State
 from gametree.Tree import Tree
 import time
 import logging
-logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 def recvall(sock, n):
@@ -98,7 +98,7 @@ def parseServerBoard(board):
             elif col == 'KING':
                 curr_board[i, j] = KING
             else:
-                logging.error(f"Unknown board value\n{curr_board}")
+                logger.error(f"Unknown board value\n{curr_board}")
                 raise Exception("Stato non riconosciuto")
             
     return curr_board
@@ -147,6 +147,6 @@ class Player:
             start_pos, end_pos, score = self.game_tree.decide(self.timeout-self.timeout_tol)
             if self.debug:
                 end_time = time.time()
-                logging.debug(f"[{end_time-start_time:.2f} s] Best move {start_pos} -> {end_pos} ({score:.3f})")
+                logger.debug(f"[{end_time-start_time:.2f} s] Best move {start_pos} -> {end_pos} ({score:.3f})")
 
             sendMoveToServer(self.sock, start_pos, end_pos, self.my_color)

@@ -1,12 +1,16 @@
 from __future__ import annotations
 from .State import State
 from typing import Generator
+import cython
+import logging
+logger = logging.getLogger(__name__)
+if not cython.compiled: logger.warn(f"Using non-compiled {__file__} module")
 
 """
     Class that represents a node in the game tree.
 """
 class TreeNode():
-    def __init__(self, start:tuple[int, int], end:tuple[int, int], parent: TreeNode):
+    def __init__(self, start:tuple[int, int]|None, end:tuple[int, int]|None, parent: TreeNode|None):
         self.start = start
         self.end = end
         self.score: float = None

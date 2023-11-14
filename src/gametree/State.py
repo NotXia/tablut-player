@@ -3,6 +3,11 @@ import numpy as np
 import numpy.typing as npt
 from typing import Generator
 import random
+import cython
+import logging
+logger = logging.getLogger(__name__)
+if not cython.compiled: logger.warn(f"Using non-compiled {__file__} module")
+
 
 MAX_SCORE = 1
 MIN_SCORE = -1

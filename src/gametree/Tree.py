@@ -1,9 +1,11 @@
 from .State import State, OPEN, WHITE, BLACK, MAX_SCORE, MIN_SCORE
 import numpy as np
 from .TreeNode import TreeNode
-import logging
 import time
-
+import cython
+import logging
+logger = logging.getLogger(__name__)
+if not cython.compiled: logger.warn(f"Using non-compiled {__file__} module")
 
 """
     Class that represents the whole game tree.
@@ -49,7 +51,7 @@ class Tree():
         if self.root.score == MAX_SCORE:
             # A winning move is already known, minimax is not necessary.
             # This also prevents possible loops.
-            logging.debug("Following winning path")
+            logger.debug("Following winning path")
             best_score = MAX_SCORE
             
             for child in self.root.children:    
@@ -61,14 +63,15 @@ class Tree():
                 depth += 1
                 curr_best_score, curr_best_child = self.minimax(self.root, depth, -np.inf, +np.inf, end_timestamp)
                 if curr_best_score is None or curr_best_child is None:
+                    depth -= 1
                     break
                 best_score, best_child = curr_best_score, curr_best_child
                 if best_child.score != best_score:
-                    logging.error("ERROR, returned the wrong child")
+                    logger.error("ERROR, returned the wrong child")
         
         if self.__debug:
-            logging.debug(f"Explored depth = {depth}")
-            logging.debug(f"Explored nodes: {self.__explored_nodes}, {self.__explored_nodes/(timeout):.2f} nodes/s")
+            logger.debug(f"Explored depth = {depth}")
+            logger.debug(f"Explored nodes: {self.__explored_nodes}, {self.__explored_nodes/(timeout):.2f} nodes/s")
 
         
         self.root = best_child
@@ -90,18 +93,18 @@ class Tree():
             for child in self.root.children:
                 captured = self.state.applyMove(child.start, child.end)
                 if np.all(self.state.board == next_state.board):
-                    logging.debug("Not dropping tree")
+                    logger.debug("Not dropping tree")
                     # Move found, update the root and
                     # leave the board status as is (do not need to revert).
                     self.root = child
                     return
                 self.state.revertMove(child.start, child.end, captured)
         except:
-            logging.error("Error in applying opponent move")
+            logger.error("Error in applying opponent move")
         
         # Move not found among the children of the root,
         # the current tree is deleted.
-        logging.debug("Dropping tree")
+        logger.debug("Dropping tree")
         self.state = next_state
         self.root = TreeNode(None, None, None)
 
