@@ -1,6 +1,6 @@
-from State import State, OPEN, WHITE, BLACK, MAX_SCORE, MIN_SCORE
+from .State import State, OPEN, WHITE, BLACK, MAX_SCORE, MIN_SCORE
 import numpy as np
-from TreeNode import TreeNode
+from .TreeNode import TreeNode
 import logging
 import time
 

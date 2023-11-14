@@ -1,4 +1,4 @@
-from State import State
+from .State import State
 
 EXACT = 0
 LOWERBOUND = 1

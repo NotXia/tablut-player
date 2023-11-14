@@ -2,8 +2,8 @@ import socket
 import struct
 import json
 import numpy as np
-from State import BLACK, WHITE, EMPTY, KING, State
-from Tree import Tree
+from gametree.State import BLACK, WHITE, EMPTY, KING, State
+from gametree.Tree import Tree
 import time
 import logging
 logging.basicConfig(level=logging.DEBUG)

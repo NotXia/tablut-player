@@ -1,6 +1,6 @@
 import argparse
 from Player import Player
-from State import BLACK, WHITE
+from gametree.State import BLACK, WHITE
 
 
 if __name__ == "__main__":
