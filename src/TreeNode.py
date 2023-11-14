@@ -36,8 +36,7 @@ class TreeNode():
             for start, end in state.getMoves():
                 child = TreeNode(start, end, self)
                 self.children.append(child)
-                yield child
-        else:
-            # Children of this node already generated
-            for child in self.children:
-                yield child
+                
+        # Children of this node already generated
+        for child in self.children:
+            yield child

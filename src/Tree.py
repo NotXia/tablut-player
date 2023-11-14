@@ -146,19 +146,13 @@ class Tree():
                 # Max
                 eval = -np.inf
                 for child in tree_node.getChildren(self.state):
-                    if time.time() >= timeout_timestamp:
-                        # Times up
-                        # Drop the currently generated children 
-                        # as the generation is not complete
-                        tree_node.children = None
-                        return None, None
+                    if time.time() >= timeout_timestamp: return None, None # Times up
                     
                     captured = self.state.applyMove(child.start, child.end)
                     eval_minimax, _ = self.minimax(child, max_depth-1, alpha, beta, timeout_timestamp)
                     self.state.revertMove(child.start, child.end, captured)
                     
-                    if eval_minimax is None: 
-                        return None, None # Times up
+                    if eval_minimax is None: return None, None # Times up
                     
                     eval = max(eval, eval_minimax)
                     if eval > alpha: # Also saves best move for the choice at the root
@@ -170,17 +164,13 @@ class Tree():
                 # Min
                 eval = np.inf
                 for child in tree_node.getChildren(self.state):
-                    if time.time() >= timeout_timestamp:
-                        # Times up
-                        tree_node.children = None
-                        return None, None
+                    if time.time() >= timeout_timestamp: return None, None # Times up
 
                     captured = self.state.applyMove(child.start, child.end)
                     eval_minimax, _ = self.minimax(child, max_depth-1, alpha, beta, timeout_timestamp)
                     self.state.revertMove(child.start, child.end, captured)
                     
-                    if eval_minimax is None: 
-                        return None, None # Times up
+                    if eval_minimax is None: return None, None # Times up
 
                     eval = min(eval, eval_minimax)
                     beta = min(eval, beta)
