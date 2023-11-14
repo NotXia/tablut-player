@@ -44,10 +44,12 @@ class Tree():
         
         end_timestamp = time.time() + timeout
         best_child = None
+        depth = 0
         
         if self.root.score == MAX_SCORE:
             # A winning move is already known, minimax is not necessary.
             # This also prevents possible loops.
+            logging.debug("Following winning path")
             best_score = MAX_SCORE
             
             for child in self.root.children:    
@@ -55,15 +57,14 @@ class Tree():
                     best_child = child
                     break
         else:
-            depth = 1
             while time.time() < end_timestamp:
+                depth += 1
                 curr_best_score, curr_best_child = self.minimax(self.root, depth, -np.inf, +np.inf, end_timestamp)
                 if curr_best_score is None or curr_best_child is None:
                     break
                 best_score, best_child = curr_best_score, curr_best_child
                 if best_child.score != best_score:
                     logging.error("ERROR, returned the wrong child")
-                depth += 1
         
         if self.__debug:
             logging.debug(f"Explored depth = {depth}")
@@ -89,6 +90,7 @@ class Tree():
             for child in self.root.children:
                 captured = self.state.applyMove(child.start, child.end)
                 if np.all(self.state.board == next_state.board):
+                    logging.debug("Not dropping tree")
                     # Move found, update the root and
                     # leave the board status as is (do not need to revert).
                     self.root = child
@@ -99,6 +101,7 @@ class Tree():
         
         # Move not found among the children of the root,
         # the current tree is deleted.
+        logging.debug("Dropping tree")
         self.state = next_state
         self.root = TreeNode(None, None, None)
 
@@ -143,43 +146,45 @@ class Tree():
                 # Max
                 eval = -np.inf
                 for child in tree_node.getChildren(self.state):
-                    captured = self.state.applyMove(child.start, child.end)
-                    
                     if time.time() >= timeout_timestamp:
                         # Times up
                         # Drop the currently generated children 
                         # as the generation is not complete
                         tree_node.children = None
                         return None, None
-
+                    
+                    captured = self.state.applyMove(child.start, child.end)
                     eval_minimax, _ = self.minimax(child, max_depth-1, alpha, beta, timeout_timestamp)
-                    if eval_minimax is None: return None, None # Times up
+                    self.state.revertMove(child.start, child.end, captured)
+                    
+                    if eval_minimax is None: 
+                        return None, None # Times up
                     
                     eval = max(eval, eval_minimax)
                     if eval > alpha: # Also saves best move for the choice at the root
                         alpha = eval
                         best_child = child
 
-                    self.state.revertMove(child.start, child.end, captured)
                     if eval >= beta: break # cutoff
             else:
                 # Min
                 eval = np.inf
                 for child in tree_node.getChildren(self.state):
-                    captured = self.state.applyMove(child.start, child.end)
-
                     if time.time() >= timeout_timestamp:
                         # Times up
                         tree_node.children = None
                         return None, None
 
+                    captured = self.state.applyMove(child.start, child.end)
                     eval_minimax, _ = self.minimax(child, max_depth-1, alpha, beta, timeout_timestamp)
-                    if eval_minimax is None: return None, None # Times up
+                    self.state.revertMove(child.start, child.end, captured)
+                    
+                    if eval_minimax is None: 
+                        return None, None # Times up
 
                     eval = min(eval, eval_minimax)
                     beta = min(eval, beta)
 
-                    self.state.revertMove(child.start, child.end, captured)
                     if eval <= alpha: break # cutoff
 
         tree_node.score = eval
