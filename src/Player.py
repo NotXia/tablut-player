@@ -125,10 +125,11 @@ class Player:
 
 
     def play(self):
-        # TODO handle game end
         while True:
             turn, board = receiveStateFromServer(self.sock)
-            curr_turn = WHITE if turn == "white" else BLACK
+            if turn == "white": curr_turn = WHITE
+            elif turn == "black": curr_turn = BLACK
+            else: break
 
             if curr_turn != self.my_color:
                 continue
@@ -150,3 +151,11 @@ class Player:
                 logger.debug(f"[{end_time-start_time:.2f} s] Best move {start_pos} -> {end_pos} ({score:.3f})")
 
             sendMoveToServer(self.sock, start_pos, end_pos, self.my_color)
+
+        if turn == "draw":
+            print("🇨🇭")
+        elif ((turn == "whitewin" and self.my_color == WHITE) or
+            (turn == "blackwin" and self.my_color == BLACK)):
+            print("ᕦ(⌐■_■)ᕤ")
+        else:
+            print("(• ᴖ •)")
