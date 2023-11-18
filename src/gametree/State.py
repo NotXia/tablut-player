@@ -79,24 +79,57 @@ class State():
                 `from` and `start` are coordinates (i, j).
     """
     def getMoves(self) -> Generator[tuple[tuple[int, int], tuple[int, int]]]:
+        pos_king = tuple(np.argwhere(self.board == KING)[0])
+        visited = set()
+        pawn = WHITE if self.is_white_turn else BLACK
+        
+        if self.is_white_turn:
+            # Per il bianco prendiamo prima le mosse del re
+            for m in self.__getPawnMoves(pos_king[0], pos_king[1]):
+                yield m
+        
+        # Poi andiamo a prendere gli assi attorno al re,
+        # Cioè tutti i pezzi con coordinata i = pos_king[0] +- 1
+        for i in [pos_king[0], pos_king[0] + 1, pos_king[0] - 1]:
+            if not self.isValidCell(i, 0): continue # Checks if the row is valid
+            for j in range(9):
+                if (i, j) != pos_king and self.board[i, j] == pawn:
+                    visited.add((i, j))
+                    for m in self.__getPawnMoves(i,j):
+                        yield m
+
+        for curr_range in [range(0, pos_king[0]-1), range(pos_king[0]+2, 9)]:
+            for i in curr_range:
+                for j in [pos_king[1], pos_king[1] + 1, pos_king[1] - 1]:
+                    if not self.isValidCell(0, j): continue # Checks if the column is valid
+                    if self.board[i, j] == pawn:
+                        visited.add((i,j))
+                        for m in self.__getPawnMoves(i,j):
+                            yield m
+
+        # Other pawns
         for i in range(9):
             for j in range(9):
-                if (self.is_white_turn and (self.board[i, j] == WHITE or self.board[i, j] == KING)) or (not self.is_white_turn and self.board[i, j] == BLACK):
-                    for direction in [RIGHT, UP, LEFT, DOWN]:
-                        n = self.numSteps(i, j, direction)
-                        for step in range(1, n+1):
-                            if direction == RIGHT:
-                                target = (i, j + step)
-                            elif direction == UP:
-                                target = (i - step, j)
-                            elif direction == LEFT:
-                                target = (i, j - step)
-                            elif direction == DOWN:
-                                target = (i + step, j)
-                            
-                            if self.isValidCell(target[0], target[1]):
-                                yield ((i, j), target)
-    
+                if self.board[i, j] == pawn and (i, j) not in visited:
+                    for m in self.__getPawnMoves(i,j):
+                        yield m 
+
+
+    def __getPawnMoves(self, i:int, j:int) -> Generator[tuple[tuple[int, int], tuple[int, int]]]:
+        for direction in [RIGHT, UP, LEFT, DOWN]:
+            n = self.numSteps(i, j, direction)
+            for step in range(1, n+1):
+                if direction == RIGHT:
+                    target = (i, j + step)
+                elif direction == UP:
+                    target = (i - step, j)
+                elif direction == LEFT:
+                    target = (i, j - step)
+                elif direction == DOWN:
+                    target = (i + step, j)
+                
+                if self.isValidCell(target[0], target[1]):
+                    yield ((i, j), target)
 
     """
         Applies a move in the board.
