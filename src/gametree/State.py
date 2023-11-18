@@ -3,6 +3,7 @@ import numpy as np
 import numpy.typing as npt
 from typing import Generator
 import random
+from .heuristics import *
 import cython
 import logging
 logger = logging.getLogger(__name__)
@@ -84,12 +85,12 @@ class State():
         pawn = WHITE if self.is_white_turn else BLACK
         
         if self.is_white_turn:
-            # Per il bianco prendiamo prima le mosse del re
+            # If White turn, check KING moves
             for m in self.__getPawnMoves(pos_king[0], pos_king[1]):
                 yield m
         
-        # Poi andiamo a prendere gli assi attorno al re,
-        # Cioè tutti i pezzi con coordinata i = pos_king[0] +- 1
+        # Then iterate over axes near the KING,
+        # Check moves for pawns in rows i = pos_king[0] +- 1
         for i in [pos_king[0], pos_king[0] + 1, pos_king[0] - 1]:
             if not self.isValidCell(i, 0): continue # Checks if the row is valid
             for j in range(9):
