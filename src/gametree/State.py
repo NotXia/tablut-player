@@ -310,9 +310,9 @@ class State():
                 return True
         # Normal capture
         else:
-            capturing_pawn = BLACK
+            pawn_color = WHITE
             if self.board[i, j] == BLACK:
-                capturing_pawn = WHITE
+                pawn_color = BLACK
 
             is_vertically_captured = False
             is_horizontally_captured = False
@@ -320,14 +320,12 @@ class State():
             if to_filter_axis is None or to_filter_axis == VERTICAL:
                 is_vertically_captured = (
                     self.isValidCell(i+1, j) and self.isValidCell(i-1, j) and
-                    (self.board[i+1, j] == capturing_pawn or self.isWall(i+1, j)) and 
-                    (self.board[i-1, j] == capturing_pawn or self.isWall(i-1, j))
+                    self.isCapturingElementFor(pawn_color, i+1, j) and self.isCapturingElementFor(pawn_color, i-1, j)
                 )
             if to_filter_axis is None or to_filter_axis == HORIZONTAL:
                 is_horizontally_captured = (
                     self.isValidCell(i, j+1) and self.isValidCell(i, j-1) and
-                    (self.board[i, j+1] == capturing_pawn or self.isWall(i, j+1)) and
-                    (self.board[i, j-1] == capturing_pawn or self.isWall(i, j-1))
+                    self.isCapturingElementFor(pawn_color, i, j+1) and self.isCapturingElementFor(pawn_color, i, j-1)
                 )
 
             return is_vertically_captured or is_horizontally_captured

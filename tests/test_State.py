@@ -185,5 +185,17 @@ class TestState(unittest.TestCase):
         s = State(np.array(b, dtype=np.byte), True)
         self.assertTrue(s.isCaptured(3, 4))
 
+        b = [[E,E,E,B,B,B,E,E,E],
+             [E,E,E,E,B,E,E,E,E],
+             [E,E,E,E,E,W,E,E,E],
+             [E,E,W,B,K,B,E,E,E],
+             [B,B,W,W,E,B,W,B,B],
+             [B,E,E,E,B,E,E,E,B],
+             [E,E,E,E,W,E,E,E,E],
+             [E,E,E,E,B,E,E,E,E],
+             [E,E,E,B,B,B,E,E,E]]
+        s = State(np.array(b, dtype=np.byte), True)
+        self.assertTrue(s.isCaptured(3, 3, HORIZONTAL))
+
 if __name__ == "__main__":
     unittest.main()
