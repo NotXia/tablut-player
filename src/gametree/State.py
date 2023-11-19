@@ -2,16 +2,14 @@ from __future__ import annotations
 import numpy as np
 import numpy.typing as npt
 from typing import Generator
-import random
-from .heuristics import *
 import cython
 import logging
 logger = logging.getLogger(__name__)
 if not cython.compiled: logger.warn(f"Using non-compiled {__file__} module")
 
 
-MAX_SCORE = 1
-MIN_SCORE = -1
+MAX_SCORE = 1000
+MIN_SCORE = -1000
 
 EMPTY = 0
 BLACK = 1
@@ -68,6 +66,10 @@ class State():
     def __init__(self, board: npt.NDArray[np.byte], is_white_turn: bool):
         self.board = board
         self.is_white_turn = is_white_turn
+
+
+    def __str__(self):
+        return f"WhiteTurn = {self.is_white_turn}\n {str(self.board)}"
 
     
     """
@@ -366,6 +368,29 @@ class State():
         else:
             return self.isWall(i, j)
         
+    
+    """
+        Determines if a cell (i, j) contains an element that can capture
+        a pawn of a given color.
+
+        Parameters
+        ----------
+            pawn_color : WHITE | BLACK
+                The color of the pawn to check if the cell (i, j) is a capturing cell.
+
+            i, j: int
+                Row and column to check.
+        
+        Returns
+        -------
+            is_capturing : bool
+    """
+    def isCapturingElementFor(self, pawn_color:WHITE|BLACK, i:int, j:int) -> bool:
+        if pawn_color == WHITE:
+            return self.board[i, j] == BLACK or self.isWall(i, j)
+        else:
+            return self.board[i, j] == WHITE or self.board[i, j] == KING or self.isWall(i, j)
+
 
     """
         Checks if a (black) pawn is inside a camp.
@@ -426,14 +451,7 @@ class State():
             while(not self.isObstacle(i + num, j, num_camp)):
                 num +=1
         return num - 1
-    
 
-    def heuristics(self, player_color:BLACK|WHITE)->float:
-        return random.random()
-
-
-    def __str__(self):
-        return f"WhiteTurn = {self.is_white_turn}\n {str(self.board)}"
 
     """
         Determines the score of the current configuration.
@@ -457,3 +475,136 @@ class State():
             return MAX_SCORE if player_color == WHITE else MIN_SCORE
         else:
             return self.heuristics(player_color)
+
+
+    """
+        Computes the heuristic score for this game state.
+
+        Parameters
+        ----------
+            player_color : BLACK | WHITE
+                Color for which compute the heuristic.
+
+        Returns
+        -------
+            score : float
+    """
+    def heuristics(self, player_color:BLACK|WHITE) -> float:
+        if player_color == WHITE:
+            return (
+                self.__countPawn(WHITE)/8 + 
+                -self.__countPawn(BLACK)/16 +
+                -self.__avgDistanceToKing(WHITE) + 
+                self.__avgDistanceToKing(BLACK) + 
+                -self.__threatRatio(WHITE) +
+                self.__threatRatio(BLACK) +
+                self.__minDistanceToEscape() +
+                0
+            )
+        else:
+            return (
+                self.__countPawn(BLACK)/16 + 
+                -self.__countPawn(WHITE)/8 +
+                -self.__avgDistanceToKing(BLACK) + 
+                self.__avgDistanceToKing(WHITE) + 
+                -self.__threatRatio(BLACK) +
+                self.__threatRatio(WHITE) +
+                -self.__minDistanceToEscape() +
+                0
+            )
+
+
+    """
+        Determines the number of pawns of a certain color (king excluded).
+
+        Parameters
+        ----------
+            color : WHITE|BLACK
+                Color of the pawn to check.
+
+        Returns
+        -------
+            num_pawns : int
+    """
+    def __countPawn(self, color:WHITE|BLACK) -> int:
+        return np.sum(self.board == color)
+
+
+    """
+        Determines the average Manhattan distance of 
+        the pawns of a certain color to the king.
+
+        Parameters
+        ----------
+            color : WHITE|BLACK
+                Color of the pawn to check.
+
+        Returns
+        -------
+            avg_distance : float
+    """
+    def __avgDistanceToKing(self, color:WHITE|BLACK)->float:
+        # TODO What if no whites remaining
+        pos_king = tuple(np.argwhere(self.board == KING)[0])
+        dist = []
+        for i in range(9):
+            for j in range(9):
+                if self.board[i,j] == color:
+                    dist.append(abs(pos_king[0] - i) + abs(pos_king[1] - j))
+        return sum(dist)/len(dist)
+
+
+    """
+        Determines the threat ratio of the pawns of a certain color (king included).
+        The surrounding ratio is 1 if all the pawns are surrounded 
+        (i.e. any pawn is missing a single opponent pawn to be captured)
+        and is 0 if none of the pawns are close to opponent pawns or walls.
+        
+        Parameters
+        ----------
+            color : WHITE|BLACK
+                Color of the pawn to check.
+
+        Returns
+        -------
+            threat_ratio : float
+    """
+    def __threatRatio(self, color:WHITE|BLACK) -> float:
+        threats = 0
+        total_possible_threats = 0
+        for i in range(9):
+            for j in range(9):
+                if (i, j) in CAMP_DICT: continue # Black pawns inside a camp are not counted
+
+                if (self.board[i, j] == color) or (self.board[i, j] == KING and color == WHITE):
+                    if self.isValidCell(i+1, j) and self.isValidCell(i-1, j): 
+                        total_possible_threats += 1
+                        if ((self.isCapturingElementFor(color, i+1, j) and self.board[i-1, j] == EMPTY) or
+                            (self.isCapturingElementFor(color, i-1, j) and self.board[i+1, j] == EMPTY)):
+                            threats += 1
+                    if self.isValidCell(i, j+1) and self.isValidCell(i, j-1): 
+                        total_possible_threats += 1
+                        if ((self.isCapturingElementFor(color, i, j+1) and self.board[i, j-1] == EMPTY) or
+                            (self.isCapturingElementFor(color, i, j-1) and self.board[i, j+1] == EMPTY)):
+                            threats += 1
+
+        return 0 if total_possible_threats == 0 else (threats / total_possible_threats)
+
+
+    """
+        Determines the minimum distance between the king and the free escape tiles.
+
+        Returns
+        -------
+            min_distance : float
+    """
+    def __minDistanceToEscape(self) -> float:
+        # TODO What if none are free
+        pos_king = tuple(np.argwhere(self.board == KING)[0])
+        m = 100
+        for t in ESCAPE_TILES:
+            if self.board[t[0], t[1]] == EMPTY:
+                dist = abs(pos_king[0] - t[0]) + abs(pos_king[1] - t[1])
+                if dist < m:
+                    m = dist
+        return m          
