@@ -63,9 +63,17 @@ NEAR_CASTLE_TILES = [(3, 4), (5, 4), (4, 3), (4, 5)]
     The state is represented by a matrix of bytes of dimensions 9x9.
 """
 class State():
-    def __init__(self, board: npt.NDArray[np.byte], is_white_turn: bool):
+    def __init__(self, board: npt.NDArray[np.byte], is_white_turn: bool, rules="ashton"):
         self.board = board
         self.is_white_turn = is_white_turn
+
+        if rules == "ashton":
+            self.N_ROWS = 9
+            self.N_COLS = 9
+            self.N_WHITES = 8
+            self.N_BLACKS = 16
+        else:
+            raise ValueError("Unknown rules")
 
 
     def __str__(self):
@@ -94,13 +102,13 @@ class State():
         # Check moves for pawns in rows i = pos_king[0] +/- 1
         for i in [pos_king[0], pos_king[0] + 1, pos_king[0] - 1]:
             if not self.isValidCell(i, 0): continue # Checks if the row is valid
-            for j in range(9):
+            for j in range(self.N_COLS):
                 if (i, j) != pos_king and self.board[i, j] == pawn:
                     for m in self.__getPawnMoves(i,j):
                         yield m
 
         # Check moves for pawns in column i = pos_king[1] +/- 1
-        for curr_range in [range(0, pos_king[0]-1), range(pos_king[0]+2, 9)]:
+        for curr_range in [range(0, pos_king[0]-1), range(pos_king[0]+2, self.N_ROWS)]:
             for i in curr_range:
                 for j in [pos_king[1], pos_king[1] + 1, pos_king[1] - 1]:
                     if not self.isValidCell(0, j): continue # Checks if the column is valid
@@ -111,8 +119,8 @@ class State():
         # Other pawns
         to_skip_rows = [pos_king[0], pos_king[0] + 1, pos_king[0] - 1]
         to_skip_columns = [pos_king[1], pos_king[1] + 1, pos_king[1] - 1]
-        for i in range(9):
-            for j in range(9):
+        for i in range(self.N_ROWS):
+            for j in range(self.N_COLS):
                 if self.board[i, j] != pawn or i in to_skip_rows or j in to_skip_columns: continue
 
                 for m in self.__getPawnMoves(i,j):
@@ -244,7 +252,7 @@ class State():
             is_valid : bool
     """
     def isValidCell(self, i: int, j: int) -> bool:
-        return (0 <= i <= 8) and (0 <= j <= 8)
+        return (0 <= i < self.N_ROWS) and (0 <= j < self.N_COLS)
 
     
     """
@@ -408,14 +416,7 @@ class State():
     def getCampOfPawnAt(self, i:int, j:int) -> None|int:
         if self.board[i,j] != BLACK:
             return None
-        
-        if ((i == 0 and 3 <= j <= 5) or (i == 1 and j == 4) or
-            (i == 8 and 3 <= j <= 5) or (i == 7 and j == 4) or
-            (j == 0 and 3 <= i <= 5) or (i == 4 and j == 1) or
-            (j == 8 and 3 <= i <= 5) or (i == 4 and j == 7)):
-            return CAMP_DICT[(i,j)]
-        
-        return None
+        return CAMP_DICT.get((i,j), None)        
 
 
     """
@@ -491,8 +492,8 @@ class State():
     def heuristics(self, player_color:BLACK|WHITE) -> float:
         if player_color == WHITE:
             return (
-                self.__countPawn(WHITE)/8 + 
-                -self.__countPawn(BLACK)/16 +
+                self.__countPawn(WHITE)/self.N_WHITES + 
+                -self.__countPawn(BLACK)/self.N_BLACKS +
                 -self.__avgDistanceToKing(WHITE) + 
                 self.__avgDistanceToKing(BLACK) + 
                 -self.__threatRatio(WHITE) +
@@ -502,8 +503,8 @@ class State():
             )
         else:
             return (
-                self.__countPawn(BLACK)/16 + 
-                -self.__countPawn(WHITE)/8 +
+                self.__countPawn(BLACK)/self.N_BLACKS + 
+                -self.__countPawn(WHITE)/self.N_WHITES +
                 -self.__avgDistanceToKing(BLACK) + 
                 self.__avgDistanceToKing(WHITE) + 
                 -self.__threatRatio(BLACK) +
@@ -546,8 +547,8 @@ class State():
         # TODO What if no whites remaining
         pos_king = tuple(np.argwhere(self.board == KING)[0])
         dist = []
-        for i in range(9):
-            for j in range(9):
+        for i in range(self.N_ROWS):
+            for j in range(self.N_COLS):
                 if self.board[i,j] == color:
                     dist.append(abs(pos_king[0] - i) + abs(pos_king[1] - j))
         return sum(dist)/len(dist)
@@ -571,8 +572,8 @@ class State():
     def __threatRatio(self, color:WHITE|BLACK) -> float:
         threats = 0
         total_possible_threats = 0
-        for i in range(9):
-            for j in range(9):
+        for i in range(self.N_ROWS):
+            for j in range(self.N_COLS):
                 if (i, j) in CAMP_DICT: continue # Black pawns inside a camp are not counted
 
                 if (self.board[i, j] == color) or (self.board[i, j] == KING and color == WHITE):

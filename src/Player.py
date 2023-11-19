@@ -135,7 +135,7 @@ class Player:
                 continue
 
             curr_board = parseServerBoard(board)
-            curr_state = State(curr_board, curr_turn == WHITE)
+            curr_state = State(curr_board, curr_turn == WHITE, rules="ashton")
 
             if self.game_tree is None:
                 # Tree created for the first time
