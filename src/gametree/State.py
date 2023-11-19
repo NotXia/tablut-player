@@ -83,7 +83,6 @@ class State():
     """
     def getMoves(self) -> Generator[tuple[tuple[int, int], tuple[int, int]]]:
         pos_king = tuple(np.argwhere(self.board == KING)[0])
-        visited = set()
         pawn = WHITE if self.is_white_turn else BLACK
         
         if self.is_white_turn:
@@ -92,30 +91,32 @@ class State():
                 yield m
         
         # Then iterate over axes near the KING,
-        # Check moves for pawns in rows i = pos_king[0] +- 1
+        # Check moves for pawns in rows i = pos_king[0] +/- 1
         for i in [pos_king[0], pos_king[0] + 1, pos_king[0] - 1]:
             if not self.isValidCell(i, 0): continue # Checks if the row is valid
             for j in range(9):
                 if (i, j) != pos_king and self.board[i, j] == pawn:
-                    visited.add((i, j))
                     for m in self.__getPawnMoves(i,j):
                         yield m
 
+        # Check moves for pawns in column i = pos_king[1] +/- 1
         for curr_range in [range(0, pos_king[0]-1), range(pos_king[0]+2, 9)]:
             for i in curr_range:
                 for j in [pos_king[1], pos_king[1] + 1, pos_king[1] - 1]:
                     if not self.isValidCell(0, j): continue # Checks if the column is valid
                     if self.board[i, j] == pawn:
-                        visited.add((i,j))
                         for m in self.__getPawnMoves(i,j):
                             yield m
 
         # Other pawns
+        to_skip_rows = [pos_king[0], pos_king[0] + 1, pos_king[0] - 1]
+        to_skip_columns = [pos_king[1], pos_king[1] + 1, pos_king[1] - 1]
         for i in range(9):
             for j in range(9):
-                if self.board[i, j] == pawn and (i, j) not in visited:
-                    for m in self.__getPawnMoves(i,j):
-                        yield m 
+                if self.board[i, j] != pawn or i in to_skip_rows or j in to_skip_columns: continue
+
+                for m in self.__getPawnMoves(i,j):
+                    yield m 
 
 
     def __getPawnMoves(self, i:int, j:int) -> Generator[tuple[tuple[int, int], tuple[int, int]]]:
