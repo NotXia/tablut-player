@@ -16,6 +16,7 @@ class TreeNode():
         self.score: float = None
         self.parent = parent
         self.children: list[TreeNode] = None
+        self.critical_len = 0
 
 
     """
@@ -37,7 +38,9 @@ class TreeNode():
             # Children of this node haven't been generated yet
             self.children = []
             
-            for start, end in state.getMoves():
+            critical_moves, other_moves = state.getMoves()
+            self.critical_len = len(critical_moves)
+            for start, end in critical_moves + other_moves:
                 child = TreeNode(start, end, self)
                 self.children.append(child)
                 

@@ -92,39 +92,34 @@ class State():
     def getMoves(self) -> Generator[tuple[tuple[int, int], tuple[int, int]]]:
         pos_king = tuple(np.argwhere(self.board == KING)[0])
         pawn = WHITE if self.is_white_turn else BLACK
-        
+
+        king_moves = []
+        same_king_axis_moves = []
+        near_king_moves = []
+        capturing_moves = []
+        other_moves = []
+
         if self.is_white_turn:
             # If White turn, check KING moves
             for m in self.__getPawnMoves(pos_king[0], pos_king[1]):
-                yield m
-        
-        # Then iterate over axes near the KING,
-        # Check moves for pawns in rows i = pos_king[0] +/- 1
-        for i in [pos_king[0], pos_king[0] + 1, pos_king[0] - 1]:
-            if not self.isValidCell(i, 0): continue # Checks if the row is valid
-            for j in range(self.N_COLS):
-                if (i, j) != pos_king and self.board[i, j] == pawn:
-                    for m in self.__getPawnMoves(i,j):
-                        yield m
+                king_moves.append(m)
 
-        # Check moves for pawns in column i = pos_king[1] +/- 1
-        for curr_range in [range(0, pos_king[0]-1), range(pos_king[0]+2, self.N_ROWS)]:
-            for i in curr_range:
-                for j in [pos_king[1], pos_king[1] + 1, pos_king[1] - 1]:
-                    if not self.isValidCell(0, j): continue # Checks if the column is valid
-                    if self.board[i, j] == pawn:
-                        for m in self.__getPawnMoves(i,j):
-                            yield m
-
-        # Other pawns
-        to_skip_rows = [pos_king[0], pos_king[0] + 1, pos_king[0] - 1]
-        to_skip_columns = [pos_king[1], pos_king[1] + 1, pos_king[1] - 1]
         for i in range(self.N_ROWS):
             for j in range(self.N_COLS):
-                if self.board[i, j] != pawn or i in to_skip_rows or j in to_skip_columns: continue
+                if self.board[i, j] != pawn: continue
 
-                for m in self.__getPawnMoves(i,j):
-                    yield m 
+                for start, end in self.__getPawnMoves(i,j):
+                    if end[0] == pos_king[0] or end[1] == pos_king[1]:
+                        same_king_axis_moves.append((start, end))
+                    elif end[0] == pos_king[0]+1 or end[0] == pos_king[0]-1 or end[1] == pos_king[1]+1 or end[1] == pos_king[1]-1:
+                        near_king_moves.append((start, end))
+                    elif (self.isCaptured(end[0]+1, end[1], VERTICAL) or self.isCaptured(end[0]-1, end[1], VERTICAL) or
+                          self.isCaptured(end[0], end[1]+1, HORIZONTAL) or self.isCaptured(end[0], end[1]-1, HORIZONTAL)):
+                        capturing_moves.append((start, end))
+                    else:
+                        other_moves.append((start, end))
+        
+        return king_moves + same_king_axis_moves + near_king_moves + capturing_moves, other_moves
 
 
     def __getPawnMoves(self, i:int, j:int) -> Generator[tuple[tuple[int, int], tuple[int, int]]]:
@@ -494,22 +489,22 @@ class State():
             return (
                 self.__countPawn(WHITE)/self.N_WHITES + 
                 -self.__countPawn(BLACK)/self.N_BLACKS +
-                -self.__avgDistanceToKing(WHITE) + 
-                self.__avgDistanceToKing(BLACK) + 
-                -self.__threatRatio(WHITE) +
-                self.__threatRatio(BLACK) +
-                self.__minDistanceToEscape() +
+                # -self.__avgDistanceToKing(WHITE) + 
+                # self.__avgDistanceToKing(BLACK) + 
+                # -self.__threatRatio(WHITE) +
+                # self.__threatRatio(BLACK) +
+                # self.__minDistanceToEscape() +
                 0
             )
         else:
             return (
                 self.__countPawn(BLACK)/self.N_BLACKS + 
                 -self.__countPawn(WHITE)/self.N_WHITES +
-                -self.__avgDistanceToKing(BLACK) + 
-                self.__avgDistanceToKing(WHITE) + 
-                -self.__threatRatio(BLACK) +
-                self.__threatRatio(WHITE) +
-                -self.__minDistanceToEscape() +
+                # -self.__avgDistanceToKing(BLACK) + 
+                # self.__avgDistanceToKing(WHITE) + 
+                # -self.__threatRatio(BLACK) +
+                # self.__threatRatio(WHITE) +
+                # -self.__minDistanceToEscape() +
                 0
             )
 

@@ -56,7 +56,8 @@ class TestState(unittest.TestCase):
         self.assertEqual(s.numSteps(3,1,DOWN), 0)
 
     def test_getMoves(self):
-        self.assertEqual(sum([1 for _ in state.getMoves()]), 56)
+        critical, others = state.getMoves()
+        self.assertEqual(len(critical) + len(others), 56)
 
     
     def test_insideCamp(self):
