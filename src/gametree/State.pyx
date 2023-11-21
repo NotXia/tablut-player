@@ -63,8 +63,11 @@ cdef list[Coord] NEAR_CASTLE_TILES = [(3, 4), (5, 4), (4, 3), (4, 5)]
     The state is represented by a matrix of bytes of dimensions 9x9.
 """
 cdef class State:
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
     def __init__(self, cnp.ndarray[cnp.npy_byte, ndim=2] board, bint is_white_turn, str rules="ashton"):
         self.board = board
+        self.memv_board = memoryview(board)
         self.is_white_turn = is_white_turn
 
         if rules == "ashton":
@@ -114,7 +117,7 @@ cdef class State:
 
         for i in range(self.N_ROWS):
             for j in range(self.N_COLS):
-                if self.board[i, j] != pawn: continue
+                if self.memv_board[i, j] != pawn: continue
 
                 for start, end in self.__getPawnMoves(i,j):
                     if end[0] == pos_king[0] or end[1] == pos_king[1]:
@@ -179,24 +182,24 @@ cdef class State:
     @cython.cdivision(True)
     cdef list[tuple[Coord, char]] applyMove(self, Coord start, Coord end):
         cdef list[tuple[Coord, char]] captured = []
-        
+
         # Applies move
-        self.board[end[0], end[1]] = self.board[start[0], start[1]]
-        self.board[start[0], start[1]] = EMPTY
+        self.memv_board[end[0], end[1]] = self.memv_board[start[0], start[1]]
+        self.memv_board[start[0], start[1]] = EMPTY
 
         # Checks if the adjacent pieces have been captured
         if self.isCaptured(end[0]+1,end[1], to_filter_axis=VERTICAL):
-            captured.append( ((end[0]+1, end[1]), self.board[end[0]+1, end[1]]) )
-            self.board[end[0]+1, end[1]] = EMPTY
+            captured.append( ((end[0]+1, end[1]), self.memv_board[end[0]+1, end[1]]) )
+            self.memv_board[end[0]+1, end[1]] = EMPTY
         if self.isCaptured(end[0]-1,end[1], to_filter_axis=VERTICAL):
-            captured.append( ((end[0]-1, end[1]), self.board[end[0]-1, end[1]]) )
-            self.board[end[0]-1, end[1]] = EMPTY
+            captured.append( ((end[0]-1, end[1]), self.memv_board[end[0]-1, end[1]]) )
+            self.memv_board[end[0]-1, end[1]] = EMPTY
         if self.isCaptured(end[0],end[1]+1, to_filter_axis=HORIZONTAL):
-            captured.append( ((end[0], end[1]+1), self.board[end[0], end[1]+1]) )
-            self.board[end[0], end[1]+1] = EMPTY
+            captured.append( ((end[0], end[1]+1), self.memv_board[end[0], end[1]+1]) )
+            self.memv_board[end[0], end[1]+1] = EMPTY
         if self.isCaptured(end[0],end[1]-1, to_filter_axis=HORIZONTAL):
-            captured.append( ((end[0], end[1]-1), self.board[end[0], end[1]-1]) )
-            self.board[end[0], end[1]-1] = EMPTY
+            captured.append( ((end[0], end[1]-1), self.memv_board[end[0], end[1]-1]) )
+            self.memv_board[end[0], end[1]-1] = EMPTY
 
         self.is_white_turn = not self.is_white_turn
 
@@ -230,14 +233,14 @@ cdef class State:
         cdef char pawn
 
         # Reverts move
-        self.board[old_start[0], old_start[1]] = self.board[old_end[0], old_end[1]]
-        self.board[old_end[0], old_end[1]] = EMPTY
+        self.memv_board[old_start[0], old_start[1]] = self.memv_board[old_end[0], old_end[1]]
+        self.memv_board[old_end[0], old_end[1]] = EMPTY
         
         # Reverts captured pawn
         for el in captured:
             pos = el[0]
             pawn = el[1]
-            self.board[pos[0], pos[1]] = pawn
+            self.memv_board[pos[0], pos[1]] = pawn
 
         self.is_white_turn = not self.is_white_turn
 
@@ -326,25 +329,25 @@ cdef class State:
 
         if not self.isValidCell(i, j): return False
         
-        if self.board[i, j] == EMPTY:
+        if self.memv_board[i, j] == EMPTY:
             return False
         # King captured in castle
-        elif (self.board[i, j] == KING and (i, j) == CASTLE_TILE):
+        elif (self.memv_board[i, j] == KING and (i, j) == CASTLE_TILE):
             return (
-                self.board[i+1, j] == BLACK and
-                self.board[i-1, j] == BLACK and
-                self.board[i, j+1] == BLACK and
-                self.board[i, j-1] == BLACK
+                self.memv_board[i+1, j] == BLACK and
+                self.memv_board[i-1, j] == BLACK and
+                self.memv_board[i, j+1] == BLACK and
+                self.memv_board[i, j-1] == BLACK
             )
         # King captured near castle
-        elif (self.board[i, j] == KING and (i, j) in NEAR_CASTLE_TILES):
+        elif (self.memv_board[i, j] == KING and (i, j) in NEAR_CASTLE_TILES):
             cnt_black = 0
             for k in (+1, -1): # Coordinates increment
                 if (i+k, j) != CASTLE_TILE:
-                    if self.board[i+k, j] == BLACK:
+                    if self.memv_board[i+k, j] == BLACK:
                         cnt_black += 1
                 if (i, j+k) != CASTLE_TILE:
-                    if self.board[i, j+k] == BLACK:
+                    if self.memv_board[i, j+k] == BLACK:
                         cnt_black += 1
             if cnt_black == 3:
                 return True
@@ -390,12 +393,13 @@ cdef class State:
     @cython.wraparound(False)
     @cython.cdivision(True)
     cdef bint isObstacle(self, int i, int j, char num_camp=NO_CAMP):
+        
         # Out of the board
         if not self.isValidCell(i, j):
             return True
             
         # Pawn on the way
-        if self.board[i, j] != EMPTY:
+        if self.memv_board[i, j] != EMPTY:
             return True
         
         # In the case of black inside the camp, the camp in which the black is
@@ -429,10 +433,11 @@ cdef class State:
     @cython.wraparound(False)
     @cython.cdivision(True)
     cdef bint isCapturingElementFor(self, int pawn_i, int pawn_j, int check_i, int check_j):
-        if self.board[pawn_i, pawn_j] == WHITE or self.board[pawn_i, pawn_j] == KING:
-            return self.board[check_i, check_j] == BLACK or self.isWall(check_i, check_j)
+        
+        if self.memv_board[pawn_i, pawn_j] == WHITE or self.memv_board[pawn_i, pawn_j] == KING:
+            return self.memv_board[check_i, check_j] == BLACK or self.isWall(check_i, check_j)
         else:
-            return (self.board[check_i, check_j] == WHITE or self.board[check_i, check_j] == KING or 
+            return (self.memv_board[check_i, check_j] == WHITE or self.memv_board[check_i, check_j] == KING or 
                 (self.isWall(check_i, check_j) and (pawn_i, pawn_j) not in CAMP_DICT))
 
 
@@ -454,7 +459,8 @@ cdef class State:
     @cython.wraparound(False)
     @cython.cdivision(True)
     cdef char getCampOfPawnAt(self, int i, int j):
-        if self.board[i,j] != BLACK:
+
+        if self.memv_board[i,j] != BLACK:
             return NO_CAMP
         return CAMP_DICT.get((i,j), NO_CAMP)        
 
@@ -588,13 +594,17 @@ cdef class State:
         -------
             avg_distance : score_t
     """
-    def __avgDistanceToKing(self, color:WHITE|BLACK)->score_t:
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    cdef score_t __avgDistanceToKing(self, char color):
         # TODO What if no whites remaining
-        pos_king = tuple(np.argwhere(self.board == KING)[0])
-        dist = []
+        cdef Coord pos_king = tuple(np.argwhere(self.board == KING)[0])
+        cdef list[int] dist = []
+        cdef int i, j
+
         for i in range(self.N_ROWS):
             for j in range(self.N_COLS):
-                if self.board[i,j] == color:
+                if self.memv_board[i,j] == color:
                     dist.append(abs(pos_king[0] - i) + abs(pos_king[1] - j))
         return sum(dist)/len(dist)
 
@@ -626,16 +636,16 @@ cdef class State:
             for j in range(self.N_COLS):
                 if (i, j) in CAMP_DICT: continue # Black pawns inside a camp are not counted
 
-                if (self.board[i, j] == color) or (self.board[i, j] == KING and color == WHITE):
+                if (self.memv_board[i, j] == color) or (self.memv_board[i, j] == KING and color == WHITE):
                     if self.isValidCell(i+1, j) and self.isValidCell(i-1, j): 
                         total_possible_threats += 1
-                        if ((self.isCapturingElementFor(i, j, i+1, j) and self.board[i-1, j] == EMPTY) or
-                            (self.isCapturingElementFor(i, j, i-1, j) and self.board[i+1, j] == EMPTY)):
+                        if ((self.isCapturingElementFor(i, j, i+1, j) and self.memv_board[i-1, j] == EMPTY) or
+                            (self.isCapturingElementFor(i, j, i-1, j) and self.memv_board[i+1, j] == EMPTY)):
                             threats += 1
                     if self.isValidCell(i, j+1) and self.isValidCell(i, j-1): 
                         total_possible_threats += 1
-                        if ((self.isCapturingElementFor(i, j, i, j+1) and self.board[i, j-1] == EMPTY) or
-                            (self.isCapturingElementFor(i, j, i, j-1) and self.board[i, j+1] == EMPTY)):
+                        if ((self.isCapturingElementFor(i, j, i, j+1) and self.memv_board[i, j-1] == EMPTY) or
+                            (self.isCapturingElementFor(i, j, i, j-1) and self.memv_board[i, j+1] == EMPTY)):
                             threats += 1
         if total_possible_threats == 0:
             return 0 
@@ -650,12 +660,16 @@ cdef class State:
         -------
             min_distance : score_t
     """
-    def __minDistanceToEscape(self) -> score_t:
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    cdef score_t __minDistanceToEscape(self):
         # TODO What if none are free
-        pos_king = tuple(np.argwhere(self.board == KING)[0])
-        m = 100
+        cdef Coord pos_king = tuple(np.argwhere(self.board == KING)[0])
+        cdef int m = 100, dist
+        cdef Coord t
+
         for t in ESCAPE_TILES:
-            if self.board[t[0], t[1]] == EMPTY:
+            if self.memv_board[t[0], t[1]] == EMPTY:
                 dist = abs(pos_king[0] - t[0]) + abs(pos_king[1] - t[1])
                 if dist < m:
                     m = dist

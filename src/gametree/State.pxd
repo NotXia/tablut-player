@@ -26,6 +26,7 @@ cdef char VERT_HORIZ
 
 cdef class State:
     cdef cnp.ndarray board
+    cdef char[:, :] memv_board
     cdef bint is_white_turn
     cdef unsigned short N_ROWS
     cdef unsigned short N_COLS
@@ -51,4 +52,6 @@ cdef class State:
     cdef score_t evaluate(self, char player_color)
     cdef score_t heuristics(self, char player_color)
     cdef int __countPawn(self, char color)
+    cdef score_t __avgDistanceToKing(self, char color)
     cdef score_t __threatRatio(self, char color)
+    cdef score_t __minDistanceToEscape(self)
