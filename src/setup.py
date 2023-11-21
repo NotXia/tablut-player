@@ -12,8 +12,10 @@
 
 from setuptools import setup
 from Cython.Build import cythonize
+from Cython.Distutils.extension import Extension
 from distutils.command.clean import clean
 import os
+import numpy as np
 
 
 class CleanButCleaner(clean):
@@ -22,12 +24,20 @@ class CleanButCleaner(clean):
 
         if self.all is not None:
             print("Removing compiled modules")
-            for f in [ f for f in os.listdir("./gametree") if f.endswith(".c") or f.endswith(".so") or f.endswith(".pyd") ]:
-                os.remove(os.path.join("./gametree", f))
+            for root, _, files in os.walk("."):
+                for f in files:
+                    if f.endswith(".c") or f.endswith(".so") or f.endswith(".pyd") or f.endswith(".html"):
+                        os.remove(os.path.join(root, f))
 
 setup(
     name = "TheCatIsOnTheTablut",
-    ext_modules = cythonize("gametree/*.py", exclude=["gametree/__init__.py"]),
+    ext_modules = cythonize(
+        "**/*.pyx", 
+        annotate = True,
+    ),
+    include_dirs = [
+        np.get_include()
+    ],
     cmdclass={
         'clean': CleanButCleaner,
     },

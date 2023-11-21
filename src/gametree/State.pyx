@@ -1,35 +1,34 @@
 from __future__ import annotations
 import numpy as np
-import numpy.typing as npt
-from typing import Generator
-import cython
-import logging
-logger = logging.getLogger(__name__)
-if not cython.compiled: logger.warn(f"Using non-compiled {__file__} module")
+cimport numpy as cnp
+cnp.import_array()
+from .utils cimport *
+cimport cython
 
 
-MAX_SCORE = 1000
-MIN_SCORE = -1000
+cdef score_t MAX_SCORE = 1000
+cdef score_t MIN_SCORE = -1000
 
-EMPTY = 0
-BLACK = 1
-WHITE = 2
-KING  = 3
+cdef char EMPTY = 0
+cdef char BLACK = 1
+cdef char WHITE = 2
+cdef char KING  = 3
 
-WHITE_WIN = 4
-BLACK_WIN = 5
-OPEN =  6
+cdef char WHITE_WIN = 4
+cdef char BLACK_WIN = 5
+cdef char OPEN =  6
 
-UP = 7
-DOWN = 8
-RIGHT = 9
-LEFT = 10
+cdef char UP = 7
+cdef char DOWN = 8
+cdef char RIGHT = 9
+cdef char LEFT = 10
 
-VERTICAL = 11
-HORIZONTAL = 12
+cdef char VERTICAL = 11
+cdef char HORIZONTAL = 12
+cdef char VERT_HORIZ = 13
 
 # Define the winning tiles
-ESCAPE_TILES = [
+cdef list[Coord] ESCAPE_TILES = [
     (0, 1), (0, 2), (0, 6), (0, 7),
     (1, 0), (2, 0), (6, 0), (7, 0),
     (1, 8), (2, 8), (6, 8), (7, 8),
@@ -54,16 +53,17 @@ CAMP_DICT = {
     (8, 5): 0,
     (7, 4): 0
 }
-CASTLE_TILE = (4, 4)
-NEAR_CASTLE_TILES = [(3, 4), (5, 4), (4, 3), (4, 5)]
+cdef char NO_CAMP = -1
+cdef Coord CASTLE_TILE = (4, 4)
+cdef list[Coord] NEAR_CASTLE_TILES = [(3, 4), (5, 4), (4, 3), (4, 5)]
 
 
 """
     Simple class to represent the state of the game.
     The state is represented by a matrix of bytes of dimensions 9x9.
 """
-class State():
-    def __init__(self, board: npt.NDArray[np.byte], is_white_turn: bool, rules="ashton"):
+cdef class State:
+    def __init__(self, cnp.ndarray[cnp.npy_byte, ndim=2] board, bint is_white_turn, str rules="ashton"):
         self.board = board
         self.is_white_turn = is_white_turn
 
@@ -85,22 +85,27 @@ class State():
 
         Returns
         -------
-            critical_moves : list[tuple[tuple[int, int], tuple[int, int]]]
+            critical_moves : list[Move]
                 List of tuples (from, start) of critical moves.
 
-            other_moves : list[tuple[tuple[int, int], tuple[int, int]]]
+            other_moves : list[Move]
                 List of tuples (from, start) of the remaining moves.
-                
     """
-    def getMoves(self) -> tuple[list[tuple[tuple[int, int], tuple[int, int]]], list[tuple[tuple[int, int], tuple[int, int]]]]:
-        pos_king = tuple(np.argwhere(self.board == KING)[0])
-        pawn = WHITE if self.is_white_turn else BLACK
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    cdef tuple[list[Move], list[Move]] getMoves(self):
+        cdef Coord pos_king = tuple(np.argwhere(self.board == KING)[0])
+        cdef char pawn = WHITE if self.is_white_turn else BLACK
 
-        king_moves = []
-        same_king_axis_moves = []
-        near_king_moves = []
-        capturing_moves = []
-        other_moves = []
+        cdef list[Move] king_moves = []
+        cdef list[Move] same_king_axis_moves = []
+        cdef list[Move] near_king_moves = []
+        cdef list[Move] capturing_moves = []
+        cdef list[Move] other_moves = []
+        
+        cdef int i, j
+        cdef Move m
 
         if self.is_white_turn:
             # If White turn, check KING moves
@@ -125,7 +130,12 @@ class State():
         return king_moves + same_king_axis_moves + near_king_moves + capturing_moves, other_moves
 
 
-    def __getPawnMoves(self, i:int, j:int) -> Generator[tuple[tuple[int, int], tuple[int, int]]]:
+    cdef list[Move] __getPawnMoves(self, int i, int j):
+        cdef list[Move] out = []
+        cdef char direction
+        cdef int n, step
+        cdef Coord target
+
         for direction in [RIGHT, UP, LEFT, DOWN]:
             n = self.numSteps(i, j, direction)
             for step in range(1, n+1):
@@ -139,7 +149,9 @@ class State():
                     target = (i + step, j)
                 
                 if self.isValidCell(target[0], target[1]):
-                    yield ((i, j), target)
+                    out.append( ((i, j), target) )
+        
+        return out
 
     """
         Applies a move in the board.
@@ -162,8 +174,11 @@ class State():
                 `pawn` is the type of pawn captured.
                 Useful to undo this move.
     """
-    def applyMove(self, start:tuple[int, int], end:tuple[int, int]) -> list[tuple[tuple[int, int], BLACK|WHITE|KING]]:
-        captured = []
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    cdef list[tuple[Coord, char]] applyMove(self, Coord start, Coord end):
+        cdef list[tuple[Coord, char]] captured = []
         
         # Applies move
         self.board[end[0], end[1]] = self.board[start[0], start[1]]
@@ -206,7 +221,14 @@ class State():
                 List of pawns the move to revert captured.
                 They are restored.
     """
-    def revertMove(self, old_start:tuple[int, int], old_end:tuple[int, int], captured:list[tuple[tuple[int, int], BLACK|WHITE|KING]]):
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    cdef void revertMove(self, Coord old_start, Coord old_end, list[tuple[Coord, char]] captured):
+        cdef tuple[Coord, char] el
+        cdef Coord pos
+        cdef char pawn
+
         # Reverts move
         self.board[old_start[0], old_start[1]] = self.board[old_end[0], old_end[1]]
         self.board[old_end[0], old_end[1]] = EMPTY
@@ -228,9 +250,13 @@ class State():
             game_state : BLACK_WIN | WHITE_WIN | OPEN
                 The status of the board.
     """
-    def getGameState(self) -> BLACK_WIN | WHITE_WIN | OPEN:
-        pos_king = np.argwhere(self.board==KING)
-        if len(pos_king)==0:
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    cdef char getGameState(self):
+        cdef cnp.ndarray pos_king = np.argwhere(self.board == KING)
+        
+        if len(pos_king) == 0:
             return BLACK_WIN
         elif ((pos_king[0][0], pos_king[0][1]) in ESCAPE_TILES):
             return WHITE_WIN
@@ -242,14 +268,14 @@ class State():
 
         Parameters
         ----------
-            i, j: int
+            i, j
                 Row and column of the position to check.
 
         Returns
         -------
             is_valid : bool
     """
-    def isValidCell(self, i: int, j: int) -> bool:
+    cdef bint isValidCell(self, int i, int j):
         return (0 <= i < self.N_ROWS) and (0 <= j < self.N_COLS)
 
     
@@ -259,14 +285,14 @@ class State():
 
         Parameters
         ----------
-            i, j: int
+            i, j
                 Row and column of the position to check.
 
         Returns
         -------
             is_wall : bool
     """
-    def isWall(self, i: int, j: int)->bool:
+    cdef bint isWall(self, int i, int j):
         return (i, j) in CAMP_DICT.keys() or (i, j) == CASTLE_TILE
     
     
@@ -277,7 +303,7 @@ class State():
 
         Parameters
         ----------
-            i, j: int
+            i, j
                 Row and column of the position.
 
             to_filter_axis : None | VERTICAL | HORIZONTAL
@@ -290,7 +316,14 @@ class State():
                 True if the pawn in position (i, j) has been captured.
                 False otherwise.
     """
-    def isCaptured(self, i: int, j: int, to_filter_axis:None|VERTICAL|HORIZONTAL=None)->bool:
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    cdef bint isCaptured(self, int i, int j, char to_filter_axis=VERT_HORIZ):
+        cdef int cnt_black
+        cdef int k
+        cdef bint is_vertically_captured, is_horizontally_captured
+
         if not self.isValidCell(i, j): return False
         
         if self.board[i, j] == EMPTY:
@@ -340,7 +373,7 @@ class State():
 
         Parameters
         ----------
-            i, j: int
+            i, j
                 Row and column of the position.
 
             num_camp : None|int
@@ -353,7 +386,10 @@ class State():
                 True if the position is an obstacle.
                 False otherwise.
     """
-    def isObstacle(self, i:int, j:int, num_camp:None|int)->bool:
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    cdef bint isObstacle(self, int i, int j, char num_camp=NO_CAMP):
         # Out of the board
         if not self.isValidCell(i, j):
             return True
@@ -364,7 +400,7 @@ class State():
         
         # In the case of black inside the camp, the camp in which the black is
         # is not considered an obstacle
-        if (num_camp is not None) and CAMP_DICT.get((i, j), None) == num_camp:
+        if (num_camp != NO_CAMP) and CAMP_DICT.get((i, j), NO_CAMP) == num_camp:
             return False
         else:
             return self.isWall(i, j)
@@ -389,7 +425,10 @@ class State():
         -------
             is_capturing : bool
     """
-    def isCapturingElementFor(self, pawn_i:int, pawn_j:int, check_i:int, check_j:int) -> bool:
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    cdef bint isCapturingElementFor(self, int pawn_i, int pawn_j, int check_i, int check_j):
         if self.board[pawn_i, pawn_j] == WHITE or self.board[pawn_i, pawn_j] == KING:
             return self.board[check_i, check_j] == BLACK or self.isWall(check_i, check_j)
         else:
@@ -402,7 +441,7 @@ class State():
 
         Parameters
         ----------
-            i, j: int
+            i, j
                 Row and column of the pawn.
 
         Returns
@@ -410,11 +449,14 @@ class State():
             camp_number : None | int
                 None if the pawn is not in a camp.
                 The identification number of the camp otherwise.
-    """       
-    def getCampOfPawnAt(self, i:int, j:int) -> None|int:
+    """
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.cdivision(True)
+    cdef char getCampOfPawnAt(self, int i, int j):
         if self.board[i,j] != BLACK:
-            return None
-        return CAMP_DICT.get((i,j), None)        
+            return NO_CAMP
+        return CAMP_DICT.get((i,j), NO_CAMP)        
 
 
     """
@@ -422,7 +464,7 @@ class State():
 
         Parameters
         ----------
-            i, j: int
+            i, j
                 Row and column of the pawn.
             
             direction : RIGHT | UP | LEFT | DOWN
@@ -430,12 +472,13 @@ class State():
 
         Returns
         -------
-            num_steps : int
+            num_steps 
                 Number of steps the pawn can make.
     """
-    def numSteps(self, i:int, j:int, direction:RIGHT|UP|LEFT|DOWN) -> int:
-        num_camp = self.getCampOfPawnAt(i, j)
-        num = 1
+    cdef int numSteps(self, int i, int j, char direction):
+        cdef char num_camp = self.getCampOfPawnAt(i, j)
+        cdef int num = 1
+
         if direction == RIGHT:
             while(not self.isObstacle(i, j + num, num_camp)):
                 num +=1
@@ -448,6 +491,7 @@ class State():
         elif direction == DOWN:
             while(not self.isObstacle(i + num, j, num_camp)):
                 num +=1
+
         return num - 1
 
 
@@ -461,11 +505,11 @@ class State():
         
         Returns
         -------
-            score : float
+            score : score_t
                 Score or heuristic of the board.
     """
-    def evaluate(self, player_color:BLACK|WHITE)->float:
-        game_state = self.getGameState()
+    cdef score_t evaluate(self, char player_color):
+        cdef char game_state = self.getGameState()
         
         if game_state == BLACK_WIN: 
            return MAX_SCORE if player_color == BLACK else MIN_SCORE
@@ -485,9 +529,9 @@ class State():
 
         Returns
         -------
-            score : float
+            score : score_t
     """
-    def heuristics(self, player_color:BLACK|WHITE) -> float:
+    cdef score_t heuristics(self, char player_color):
         if player_color == WHITE:
             return (
                 self.__countPawn(WHITE)/self.N_WHITES + 
@@ -522,9 +566,12 @@ class State():
 
         Returns
         -------
-            num_pawns : int
+            num_pawns 
     """
-    def __countPawn(self, color:WHITE|BLACK) -> int:
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    # @cython.cdivision(True)
+    cdef int __countPawn(self, char color):
         return np.sum(self.board == color)
 
 
@@ -539,9 +586,9 @@ class State():
 
         Returns
         -------
-            avg_distance : float
+            avg_distance : score_t
     """
-    def __avgDistanceToKing(self, color:WHITE|BLACK)->float:
+    def __avgDistanceToKing(self, color:WHITE|BLACK)->score_t:
         # TODO What if no whites remaining
         pos_king = tuple(np.argwhere(self.board == KING)[0])
         dist = []
@@ -565,11 +612,16 @@ class State():
 
         Returns
         -------
-            threat_ratio : float
+            threat_ratio : score_t
     """
-    def __threatRatio(self, color:WHITE|BLACK) -> float:
-        threats = 0
-        total_possible_threats = 0
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    # @cython.cdivision(True)
+    cdef score_t __threatRatio(self, char color):
+        cdef int threats = 0
+        cdef int total_possible_threats = 0
+        cdef int i, j
+        
         for i in range(self.N_ROWS):
             for j in range(self.N_COLS):
                 if (i, j) in CAMP_DICT: continue # Black pawns inside a camp are not counted
@@ -585,8 +637,10 @@ class State():
                         if ((self.isCapturingElementFor(i, j, i, j+1) and self.board[i, j-1] == EMPTY) or
                             (self.isCapturingElementFor(i, j, i, j-1) and self.board[i, j+1] == EMPTY)):
                             threats += 1
-
-        return 0 if total_possible_threats == 0 else (threats / total_possible_threats)
+        if total_possible_threats == 0:
+            return 0 
+        else:
+            return (threats / total_possible_threats)
 
 
     """
@@ -594,9 +648,9 @@ class State():
 
         Returns
         -------
-            min_distance : float
+            min_distance : score_t
     """
-    def __minDistanceToEscape(self) -> float:
+    def __minDistanceToEscape(self) -> score_t:
         # TODO What if none are free
         pos_king = tuple(np.argwhere(self.board == KING)[0])
         m = 100
