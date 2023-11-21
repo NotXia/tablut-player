@@ -85,11 +85,14 @@ class State():
 
         Returns
         -------
-            new_moves : Generator[tuple[tuple[int, int], tuple[int, int]]]
-                Generator that returns a tuple (from, start).
-                `from` and `start` are coordinates (i, j).
+            critical_moves : list[tuple[tuple[int, int], tuple[int, int]]]
+                List of tuples (from, start) of critical moves.
+
+            other_moves : list[tuple[tuple[int, int], tuple[int, int]]]
+                List of tuples (from, start) of the remaining moves.
+                
     """
-    def getMoves(self) -> Generator[tuple[tuple[int, int], tuple[int, int]]]:
+    def getMoves(self) -> tuple[list[tuple[tuple[int, int], tuple[int, int]]], list[tuple[tuple[int, int], tuple[int, int]]]]:
         pos_king = tuple(np.argwhere(self.board == KING)[0])
         pawn = WHITE if self.is_white_turn else BLACK
 
@@ -314,22 +317,18 @@ class State():
                 return True
         # Normal capture
         else:
-            pawn_color = WHITE
-            if self.board[i, j] == BLACK:
-                pawn_color = BLACK
-
             is_vertically_captured = False
             is_horizontally_captured = False
             
             if to_filter_axis is None or to_filter_axis == VERTICAL:
                 is_vertically_captured = (
                     self.isValidCell(i+1, j) and self.isValidCell(i-1, j) and
-                    self.isCapturingElementFor(pawn_color, i+1, j) and self.isCapturingElementFor(pawn_color, i-1, j)
+                    self.isCapturingElementFor(i, j, i+1, j) and self.isCapturingElementFor(i, j, i-1, j)
                 )
             if to_filter_axis is None or to_filter_axis == HORIZONTAL:
                 is_horizontally_captured = (
                     self.isValidCell(i, j+1) and self.isValidCell(i, j-1) and
-                    self.isCapturingElementFor(pawn_color, i, j+1) and self.isCapturingElementFor(pawn_color, i, j-1)
+                    self.isCapturingElementFor(i, j, i, j+1) and self.isCapturingElementFor(i, j, i, j-1)
                 )
 
             return is_vertically_captured or is_horizontally_captured
@@ -373,25 +372,29 @@ class State():
     
     """
         Determines if a cell (i, j) contains an element that can capture
-        a pawn of a given color.
+        a pawn at a given position.
 
         Parameters
         ----------
             pawn_color : WHITE | BLACK
                 The color of the pawn to check if the cell (i, j) is a capturing cell.
 
-            i, j: int
-                Row and column to check.
+            pawn_i, pawn_j: int
+                Row and column of the pawn to check (i.e. the one that will potentially be captured).
+
+            check_i, check_j: int
+                Row and column of the cell to check (i.e. the one that will potentially be the capturer).
         
         Returns
         -------
             is_capturing : bool
     """
-    def isCapturingElementFor(self, pawn_color:WHITE|BLACK, i:int, j:int) -> bool:
-        if pawn_color == WHITE:
-            return self.board[i, j] == BLACK or self.isWall(i, j)
+    def isCapturingElementFor(self, pawn_i:int, pawn_j:int, check_i:int, check_j:int) -> bool:
+        if self.board[pawn_i, pawn_j] == WHITE or self.board[pawn_i, pawn_j] == KING:
+            return self.board[check_i, check_j] == BLACK or self.isWall(check_i, check_j)
         else:
-            return self.board[i, j] == WHITE or self.board[i, j] == KING or self.isWall(i, j)
+            return (self.board[check_i, check_j] == WHITE or self.board[check_i, check_j] == KING or 
+                (self.isWall(check_i, check_j) and (pawn_i, pawn_j) not in CAMP_DICT))
 
 
     """
@@ -574,13 +577,13 @@ class State():
                 if (self.board[i, j] == color) or (self.board[i, j] == KING and color == WHITE):
                     if self.isValidCell(i+1, j) and self.isValidCell(i-1, j): 
                         total_possible_threats += 1
-                        if ((self.isCapturingElementFor(color, i+1, j) and self.board[i-1, j] == EMPTY) or
-                            (self.isCapturingElementFor(color, i-1, j) and self.board[i+1, j] == EMPTY)):
+                        if ((self.isCapturingElementFor(i, j, i+1, j) and self.board[i-1, j] == EMPTY) or
+                            (self.isCapturingElementFor(i, j, i-1, j) and self.board[i+1, j] == EMPTY)):
                             threats += 1
                     if self.isValidCell(i, j+1) and self.isValidCell(i, j-1): 
                         total_possible_threats += 1
-                        if ((self.isCapturingElementFor(color, i, j+1) and self.board[i, j-1] == EMPTY) or
-                            (self.isCapturingElementFor(color, i, j-1) and self.board[i, j+1] == EMPTY)):
+                        if ((self.isCapturingElementFor(i, j, i, j+1) and self.board[i, j-1] == EMPTY) or
+                            (self.isCapturingElementFor(i, j, i, j-1) and self.board[i, j+1] == EMPTY)):
                             threats += 1
 
         return 0 if total_possible_threats == 0 else (threats / total_possible_threats)
