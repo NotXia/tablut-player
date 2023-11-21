@@ -106,7 +106,7 @@ def parseServerBoard(board):
 
 class Player:
     def __init__(self, 
-        my_color: WHITE|BLACK,
+        my_color: str,
         timeout = 60,
         timeout_tol = 1,
         name = "TheCatIsOnTheTablut",
@@ -114,9 +114,9 @@ class Player:
         server_port = None,
         debug = False
     ):
-        self.my_color = my_color
+        self.my_color = WHITE if my_color == "white" else BLACK
         self.name = name
-        self.sock = initServerConnection(name, my_color, server_ip, server_port)
+        self.sock = initServerConnection(name, self.my_color, server_ip, server_port)
         self.timeout = timeout
         self.timeout_tol = timeout_tol
         self.debug = debug
