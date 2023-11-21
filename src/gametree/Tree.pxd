@@ -8,4 +8,5 @@ cdef class Tree():
     cdef TreeNode root
     cdef int __explored_nodes
 
+    cpdef tuple[Coord, Coord, score_t] decide(self, int timeout)
     cdef score_t minimax(self, TreeNode tree_node, int max_depth, score_t alpha, score_t beta, int timeout_timestamp)

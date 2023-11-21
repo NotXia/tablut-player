@@ -4,7 +4,7 @@ import numpy as np
 cimport numpy as cnp
 cnp.import_array()
 from .State cimport State, OPEN, WHITE, BLACK, MAX_SCORE, MIN_SCORE
-from .TreeNode import TreeNode
+from .TreeNode cimport TreeNode
 from libc.time cimport time
 import logging
 logger = logging.getLogger(__name__)
@@ -45,14 +45,14 @@ cdef class Tree():
             best_score : score_t
                 Score of the chosen move.
     """
-    def decide(self, int timeout):
+    cpdef tuple[Coord, Coord, score_t] decide(self, int timeout):
         IF DEBUG: 
             self.__explored_nodes = 0
         
         cdef int end_timestamp = time(NULL) + timeout
         cdef TreeNode best_child = None, child
         cdef int depth = 0
-        cdef score_t best_score = MIN_SCORE
+        cdef score_t best_score = MIN_SCORE, curr_best_score
         
         if self.root.score == MAX_SCORE:
             # A winning move is already known, minimax is not necessary.
