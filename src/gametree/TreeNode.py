@@ -10,11 +10,10 @@ if not cython.compiled: logger.warn(f"Using non-compiled {__file__} module")
     Class that represents a node in the game tree.
 """
 class TreeNode():
-    def __init__(self, start:tuple[int, int]|None, end:tuple[int, int]|None, parent: TreeNode|None):
+    def __init__(self, start:tuple[int, int]|None, end:tuple[int, int]|None):
         self.start = start
         self.end = end
         self.score: float = None
-        self.parent = parent
         self.children: list[TreeNode] = None
         self.critical_len = 0
 
@@ -41,7 +40,7 @@ class TreeNode():
             critical_moves, other_moves = state.getMoves()
             self.critical_len = len(critical_moves)
             for start, end in critical_moves + other_moves:
-                child = TreeNode(start, end, self)
+                child = TreeNode(start, end)
                 self.children.append(child)
                 
         # Children of this node already generated
