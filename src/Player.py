@@ -110,6 +110,7 @@ class Player:
         timeout = 60,
         timeout_tol = 1,
         name = "TheCatIsOnTheTablut",
+        weights:dict = None,
         server_ip = "localhost",
         server_port = None,
         debug = False
@@ -119,6 +120,7 @@ class Player:
         self.sock = initServerConnection(name, self.my_color, server_ip, server_port)
         self.timeout = timeout
         self.timeout_tol = timeout_tol
+        self.weights = weights
         self.debug = debug
 
         self.game_tree = None
@@ -139,7 +141,7 @@ class Player:
 
             if self.game_tree is None:
                 # Tree created for the first time
-                self.game_tree = Tree(curr_state, self.my_color, debug=self.debug)
+                self.game_tree = Tree(curr_state, self.my_color, weights=self.weights, debug=self.debug)
             else:
                 self.game_tree.applyOpponentMove(curr_state)
 
