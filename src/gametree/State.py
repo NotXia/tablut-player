@@ -5,7 +5,7 @@ from typing import Generator
 import cython
 import logging
 logger = logging.getLogger(__name__)
-if not cython.compiled: logger.warn(f"Using non-compiled {__file__} module")
+if not cython.compiled: logger.warning(f"Using non-compiled {__file__} module")
 
 
 MAX_SCORE = 1000

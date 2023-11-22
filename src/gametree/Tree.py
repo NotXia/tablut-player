@@ -5,7 +5,7 @@ import time
 import cython
 import logging
 logger = logging.getLogger(__name__)
-if not cython.compiled: logger.warn(f"Using non-compiled {__file__} module")
+if not cython.compiled: logger.warning(f"Using non-compiled {__file__} module")
 
 """
     Class that represents the whole game tree.
