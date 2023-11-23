@@ -1,7 +1,4 @@
-import sys, os
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from Player import WHITE, BLACK
-from Individual import Individual
+from Individual import Individual, BLACK, WHITE
 from Chromosome import Chromosome
 from Environment import Environment, BLACK_WIN, WHITE_WIN, DRAW
 import numpy as np
@@ -43,7 +40,7 @@ class Population:
         Makes each individual of this population to play against a given opponent.
         The fitness of each individual is updated.
     """
-    def fight(self, env:Environment, opponent:Individual, logger, epoch) -> int:
+    def fight(self, env:Environment, opponent:Individual, _logger, _epoch, _global_best:Individual) -> int:
         num_wins = 0
 
         for indiv in self.individuals:
@@ -57,7 +54,7 @@ class Population:
             if (winner == WHITE_WIN and self.color == WHITE) or (winner == BLACK_WIN and self.color == BLACK):
                 num_wins += 1
 
-            logger.update("whites" if self.color == WHITE else "blacks", self, epoch)
+            _logger.update("whites" if self.color == WHITE else "blacks", _global_best, self, _epoch)
 
         return num_wins
             
@@ -119,9 +116,7 @@ class Population:
         
 
     def __str__(self):
-        out = (
-            f"--- Best ---\n{self.getBestIndividual()}\n------------\n"
-        )
+        out = ("")
         for indiv in self.individuals:
             out += f"{indiv}\n\n"
         return out[:-2]
