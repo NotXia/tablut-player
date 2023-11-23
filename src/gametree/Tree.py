@@ -5,16 +5,26 @@ import time
 import cython
 import logging
 logger = logging.getLogger(__name__)
-if not cython.compiled: logger.warn(f"Using non-compiled {__file__} module")
+if not cython.compiled: logger.warning(f"Using non-compiled {__file__} module")
 
 """
     Class that represents the whole game tree.
 """
 class Tree():
-    def __init__(self, initial_state, player_color, debug=False):
+    def __init__(self, initial_state, player_color, weights: dict, debug=False):
         self.state: State = initial_state
         self.player_color = player_color
         self.root = TreeNode(None, None)
+        self.turns_count = 0
+
+        self.early_positive_weights = weights["early"]["positive"]
+        self.early_negative_weights = weights["early"]["negative"]
+        self.mid_positive_weights = weights["mid"]["positive"]
+        self.mid_negative_weights = weights["mid"]["negative"]
+        self.late_positive_weights = weights["late"]["positive"]
+        self.late_negative_weights = weights["late"]["negative"]
+        self.curr_positive_weights = self.early_positive_weights
+        self.curr_negative_weights = self.early_negative_weights
 
         self.__debug = debug
         if self.__debug:
@@ -44,9 +54,12 @@ class Tree():
         if self.__debug: 
             self.__explored_nodes = 0
         
+        self.turns_count += 1
         end_timestamp = time.time() + timeout
         best_child = None
         depth = 0
+
+        self.__updateWeights()
         
         if self.root.score == MAX_SCORE:
             # A winning move is already known, minimax is not necessary.
@@ -113,6 +126,21 @@ class Tree():
 
 
     """
+        Updates the weights used to compute the heuristics.
+    """
+    def __updateWeights(self):
+        if self.turns_count <= 5:
+            self.curr_positive_weights = self.early_positive_weights
+            self.curr_negative_weights = self.early_negative_weights
+        elif self.turns_count <= 15:
+            self.curr_positive_weights = self.mid_positive_weights
+            self.curr_negative_weights = self.mid_negative_weights
+        else:
+            self.curr_positive_weights = self.late_positive_weights
+            self.curr_negative_weights = self.late_negative_weights
+
+
+    """
         Runs minimax with alpha-beta pruning on a given node.
 
         Parameters
@@ -140,7 +168,11 @@ class Tree():
             self.__explored_nodes += 1
 
         if self.state.getGameState() != OPEN or max_depth == 0:
-            eval = self.state.evaluate(self.player_color)
+            eval = self.state.evaluate(
+                self.player_color,
+                self.curr_positive_weights,
+                self.curr_negative_weights,
+            )
         else:
             if ((self.state.is_white_turn and self.player_color == WHITE) or
                 (not self.state.is_white_turn and self.player_color == BLACK)):

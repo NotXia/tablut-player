@@ -5,7 +5,7 @@ from typing import Generator
 import cython
 import logging
 logger = logging.getLogger(__name__)
-if not cython.compiled: logger.warn(f"Using non-compiled {__file__} module")
+if not cython.compiled: logger.warning(f"Using non-compiled {__file__} module")
 
 
 MAX_SCORE = 1000
@@ -72,6 +72,8 @@ class State():
             self.N_COLS = 9
             self.N_WHITES = 8
             self.N_BLACKS = 16
+            self.MAX_DIST_TO_KING = 14 # Maximum distance between a pawn and the king
+            self.MAX_DIST_TO_ESCAPE = 13 # Maximum distance between the king and the farthest escape tile
         else:
             raise ValueError("Unknown rules")
 
@@ -459,12 +461,19 @@ class State():
             player_color : BLACK|WHITE
                 For which player the score is computed.
         
+            weights : list[float]
+                Weights to apply to the heuristics.
+
         Returns
         -------
             score : float
                 Score or heuristic of the board.
     """
-    def evaluate(self, player_color:BLACK|WHITE)->float:
+    def evaluate(self, 
+            player_color:BLACK|WHITE,
+            positive_weights:list[float],
+            negative_weights:list[float],
+        )->float:
         game_state = self.getGameState()
         
         if game_state == BLACK_WIN: 
@@ -472,7 +481,11 @@ class State():
         elif game_state == WHITE_WIN:
             return MAX_SCORE if player_color == WHITE else MIN_SCORE
         else:
-            return self.heuristics(player_color)
+            return self.heuristics(
+                player_color, 
+                positive_weights,
+                negative_weights,
+            )
 
 
     """
@@ -483,32 +496,43 @@ class State():
             player_color : BLACK | WHITE
                 Color for which compute the heuristic.
 
+            weights : list[float]
+                Weights to apply to the heuristics.
+
         Returns
         -------
             score : float
     """
-    def heuristics(self, player_color:BLACK|WHITE) -> float:
+    def heuristics(self, 
+            player_color:BLACK|WHITE, 
+            positive_weights:list[float],
+            negative_weights:list[float],
+        ) -> float:
         if player_color == WHITE:
             return (
-                self.__countPawn(WHITE)/self.N_WHITES + 
-                -self.__countPawn(BLACK)/self.N_BLACKS +
-                # -self.__avgDistanceToKing(WHITE) + 
-                # self.__avgDistanceToKing(BLACK) + 
-                -self.__threatRatio(WHITE) +
-                self.__threatRatio(BLACK) +
-                # self.__minDistanceToEscape() +
-                0
+                (
+                    positive_weights[0] * self.__pawnRatio(WHITE) + 
+                    positive_weights[1] * self.__avgProximityToKingRatio(WHITE) + 
+                    positive_weights[2] * self.__safenessRatio(WHITE) + 
+                    positive_weights[3] * self.__minDistanceToEscapeRatio()
+                ) - (
+                    negative_weights[0] * self.__pawnRatio(BLACK) +
+                    negative_weights[1] * self.__avgProximityToKingRatio(BLACK) + 
+                    negative_weights[2] * self.__safenessRatio(BLACK)
+                )
             )
         else:
             return (
-                self.__countPawn(BLACK)/self.N_BLACKS + 
-                -self.__countPawn(WHITE)/self.N_WHITES +
-                # -self.__avgDistanceToKing(BLACK) + 
-                # self.__avgDistanceToKing(WHITE) + 
-                -self.__threatRatio(BLACK) +
-                self.__threatRatio(WHITE) +
-                # -self.__minDistanceToEscape() +
-                0
+                (
+                    positive_weights[0] * self.__pawnRatio(BLACK) + 
+                    positive_weights[1] * self.__avgProximityToKingRatio(BLACK) + 
+                    positive_weights[2] * self.__safenessRatio(BLACK)
+                ) - (
+                    negative_weights[0] * self.__pawnRatio(WHITE) +
+                    negative_weights[1] * self.__avgProximityToKingRatio(WHITE) + 
+                    negative_weights[2] * self.__safenessRatio(WHITE) +
+                    negative_weights[3] * self.__minDistanceToEscapeRatio()
+                )
             )
 
 
@@ -524,13 +548,16 @@ class State():
         -------
             num_pawns : int
     """
-    def __countPawn(self, color:WHITE|BLACK) -> int:
-        return np.sum(self.board == color)
+    def __pawnRatio(self, color:WHITE|BLACK) -> int:
+        count = np.sum(self.board == color)
+        if color == WHITE: return count / self.N_WHITES
+        else: return count / self.N_BLACKS
 
 
     """
         Determines the average Manhattan distance of 
         the pawns of a certain color to the king.
+        Returns 1 if the pawns are near the king and 0 if they are far.
 
         Parameters
         ----------
@@ -539,24 +566,24 @@ class State():
 
         Returns
         -------
-            avg_distance : float
+            avg_proximity_ratio : float
     """
-    def __avgDistanceToKing(self, color:WHITE|BLACK)->float:
-        # TODO What if no whites remaining
+    def __avgProximityToKingRatio(self, color:WHITE|BLACK)->float:
         pos_king = tuple(np.argwhere(self.board == KING)[0])
         dist = []
         for i in range(self.N_ROWS):
             for j in range(self.N_COLS):
                 if self.board[i,j] == color:
                     dist.append(abs(pos_king[0] - i) + abs(pos_king[1] - j))
-        return sum(dist)/len(dist)
+        avg_dist = self.MAX_DIST_TO_KING if len(dist) == 0 else (sum(dist)/len(dist))
+        return 1 - (avg_dist / self.MAX_DIST_TO_KING)
 
 
     """
-        Determines the threat ratio of the pawns of a certain color (king included).
-        The surrounding ratio is 1 if all the pawns are surrounded 
-        (i.e. any pawn is missing a single opponent pawn to be captured)
-        and is 0 if none of the pawns are close to opponent pawns or walls.
+        Determines the safeness ratio of the pawns of a certain color (king included).
+        The safeness ratio is 0 if all the pawns are surrounded 
+        (i.e. all pawns are missing a single opponent pawn to be captured)
+        and is 1 if none of the pawns are close to opponent pawns or walls.
         
         Parameters
         ----------
@@ -567,7 +594,7 @@ class State():
         -------
             threat_ratio : float
     """
-    def __threatRatio(self, color:WHITE|BLACK) -> float:
+    def __safenessRatio(self, color:WHITE|BLACK) -> float:
         threats = 0
         total_possible_threats = 0
         for i in range(self.N_ROWS):
@@ -586,7 +613,8 @@ class State():
                             (self.isCapturingElementFor(i, j, i, j-1) and self.board[i, j+1] == EMPTY)):
                             threats += 1
 
-        return 0 if total_possible_threats == 0 else (threats / total_possible_threats)
+        if total_possible_threats == 0: return 1  
+        else: return 1 - (threats / total_possible_threats)
 
 
     """
@@ -596,13 +624,12 @@ class State():
         -------
             min_distance : float
     """
-    def __minDistanceToEscape(self) -> float:
-        # TODO What if none are free
+    def __minDistanceToEscapeRatio(self) -> float:
         pos_king = tuple(np.argwhere(self.board == KING)[0])
-        m = 100
+        m = self.MAX_DIST_TO_ESCAPE
         for t in ESCAPE_TILES:
             if self.board[t[0], t[1]] == EMPTY:
                 dist = abs(pos_king[0] - t[0]) + abs(pos_king[1] - t[1])
                 if dist < m:
                     m = dist
-        return m          
+        return m / self.MAX_DIST_TO_ESCAPE
