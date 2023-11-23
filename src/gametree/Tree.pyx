@@ -1,11 +1,13 @@
 DEF DEBUG = True
 
+from cpython cimport array
 import numpy as np
 cimport numpy as cnp
 cnp.import_array()
 from .State cimport State, OPEN, WHITE, BLACK, MAX_SCORE, MIN_SCORE
 from .TreeNode cimport TreeNode
 from libc.time cimport time
+from libc.stdlib cimport malloc
 import logging
 logger = logging.getLogger(__name__)
 
@@ -17,10 +19,20 @@ cdef score_t TIMEOUT = MIN_SCORE - 100.0
     Class that represents the whole game tree.
 """
 cdef class Tree():
-    def __init__(self, State initial_state, char player_color, debug=False):
+    def __init__(self, State initial_state, char player_color, dict weights, debug=False):
         self.state = initial_state
         self.player_color = player_color
         self.root = TreeNode(NULL_COORD, NULL_COORD)
+        self.turns_count = 0
+
+        self.early_positive_weights = array.array("f", weights["early"]["positive"])
+        self.early_negative_weights = array.array("f", weights["early"]["negative"])
+        self.mid_positive_weights = array.array("f", weights["mid"]["positive"])
+        self.mid_negative_weights = array.array("f", weights["mid"]["negative"])
+        self.late_positive_weights = array.array("f", weights["late"]["positive"])
+        self.late_negative_weights = array.array("f", weights["late"]["negative"])
+        self.curr_positive_weights = self.early_positive_weights
+        self.curr_negative_weights = self.early_negative_weights
 
         IF DEBUG:
             self.__explored_nodes = 0
@@ -49,10 +61,13 @@ cdef class Tree():
         IF DEBUG: 
             self.__explored_nodes = 0
         
+        self.turns_count += 1
         cdef int end_timestamp = time(NULL) + timeout
         cdef TreeNode best_child = None, child
         cdef int depth = 0
         cdef score_t best_score = MIN_SCORE, curr_best_score
+
+        self.__updateWeights()
         
         if self.root.score == MAX_SCORE:
             # A winning move is already known, minimax is not necessary.
@@ -87,6 +102,21 @@ cdef class Tree():
         _ = self.state.applyMove(best_child.start, best_child.end)
         return best_child.start, best_child.end, best_score
     
+
+    """
+        Updates the weights used to compute the heuristics.
+    """
+    cdef void __updateWeights(self):
+        if self.turns_count <= 5:
+            self.curr_positive_weights = self.early_positive_weights
+            self.curr_negative_weights = self.early_negative_weights
+        elif self.turns_count <= 15:
+            self.curr_positive_weights = self.mid_positive_weights
+            self.curr_negative_weights = self.mid_negative_weights
+        else:
+            self.curr_positive_weights = self.late_positive_weights
+            self.curr_negative_weights = self.late_negative_weights
+
 
     """
         Moves the root of the tree to the node containing the opponent's move.
@@ -151,7 +181,7 @@ cdef class Tree():
         cdef score_t eval_minimax, eval
         
         if self.state.getGameState() != OPEN or max_depth == 0:
-            eval = self.state.evaluate(self.player_color)
+            eval = self.state.evaluate(self.player_color, self.curr_positive_weights, self.curr_negative_weights)
         else:
             if ((self.state.is_white_turn and self.player_color == WHITE) or
                 (not self.state.is_white_turn and self.player_color == BLACK)):

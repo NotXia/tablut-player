@@ -75,6 +75,8 @@ cdef class State:
             self.N_COLS = 9
             self.N_WHITES = 8
             self.N_BLACKS = 16
+            self.MAX_DIST_TO_KING = 14 # Maximum distance between a pawn and the king
+            self.MAX_DIST_TO_ESCAPE = 13 # Maximum distance between the king and the farthest escape tile
         else:
             raise ValueError("Unknown rules")
 
@@ -514,7 +516,7 @@ cdef class State:
             score : score_t
                 Score or heuristic of the board.
     """
-    cdef score_t evaluate(self, char player_color):
+    cdef score_t evaluate(self, char player_color, float[:] positive_weights, float[:] negative_weights):
         cdef char game_state = self.getGameState()
         
         if game_state == BLACK_WIN: 
@@ -522,7 +524,7 @@ cdef class State:
         elif game_state == WHITE_WIN:
             return MAX_SCORE if player_color == WHITE else MIN_SCORE
         else:
-            return self.heuristics(player_color)
+            return self.heuristics(player_color, positive_weights, negative_weights)
 
 
     """
@@ -537,28 +539,32 @@ cdef class State:
         -------
             score : score_t
     """
-    cdef score_t heuristics(self, char player_color):
+    cdef score_t heuristics(self, char player_color, float[:] positive_weights, float[:] negative_weights):
         if player_color == WHITE:
             return (
-                self.__countPawn(WHITE)/self.N_WHITES + 
-                -self.__countPawn(BLACK)/self.N_BLACKS +
-                # -self.__avgDistanceToKing(WHITE) + 
-                # self.__avgDistanceToKing(BLACK) + 
-                -self.__threatRatio(WHITE) +
-                self.__threatRatio(BLACK) +
-                # self.__minDistanceToEscape() +
-                0
+                (
+                    positive_weights[0] * self.__pawnRatio(WHITE) + 
+                    positive_weights[1] * self.__avgProximityToKingRatio(WHITE) + 
+                    positive_weights[2] * self.__safenessRatio(WHITE) + 
+                    positive_weights[3] * self.__minDistanceToEscapeRatio()
+                ) - (
+                    negative_weights[0] * self.__pawnRatio(BLACK) +
+                    negative_weights[1] * self.__avgProximityToKingRatio(BLACK) + 
+                    negative_weights[2] * self.__safenessRatio(BLACK)
+                )
             )
         else:
             return (
-                self.__countPawn(BLACK)/self.N_BLACKS + 
-                -self.__countPawn(WHITE)/self.N_WHITES +
-                # -self.__avgDistanceToKing(BLACK) + 
-                # self.__avgDistanceToKing(WHITE) + 
-                -self.__threatRatio(BLACK) +
-                self.__threatRatio(WHITE) +
-                # -self.__minDistanceToEscape() +
-                0
+                (
+                    positive_weights[0] * self.__pawnRatio(BLACK) + 
+                    positive_weights[1] * self.__avgProximityToKingRatio(BLACK) + 
+                    positive_weights[2] * self.__safenessRatio(BLACK)
+                ) - (
+                    negative_weights[0] * self.__pawnRatio(WHITE) +
+                    negative_weights[1] * self.__avgProximityToKingRatio(WHITE) + 
+                    negative_weights[2] * self.__safenessRatio(WHITE) +
+                    negative_weights[3] * self.__minDistanceToEscapeRatio()
+                )
             )
 
 
@@ -572,18 +578,18 @@ cdef class State:
 
         Returns
         -------
-            num_pawns 
+            num_pawns : int
     """
-    @cython.boundscheck(False)
-    @cython.wraparound(False)
-    # @cython.cdivision(True)
-    cdef int __countPawn(self, char color):
-        return np.sum(self.board == color)
+    cdef score_t __pawnRatio(self, char color):
+        cdef int count = np.sum(self.board == color)
+        if color == WHITE: return count / self.N_WHITES
+        else: return count / self.N_BLACKS
 
 
     """
         Determines the average Manhattan distance of 
         the pawns of a certain color to the king.
+        Returns 1 if the pawns are near the king and 0 if they are far.
 
         Parameters
         ----------
@@ -592,12 +598,9 @@ cdef class State:
 
         Returns
         -------
-            avg_distance : score_t
+            avg_proximity_ratio : float
     """
-    @cython.boundscheck(False)
-    @cython.wraparound(False)
-    cdef score_t __avgDistanceToKing(self, char color):
-        # TODO What if no whites remaining
+    cdef score_t __avgProximityToKingRatio(self, char color):
         cdef Coord pos_king = tuple(np.argwhere(self.board == KING)[0])
         cdef list[int] dist = []
         cdef int i, j
@@ -606,14 +609,15 @@ cdef class State:
             for j in range(self.N_COLS):
                 if self.memv_board[i,j] == color:
                     dist.append(abs(pos_king[0] - i) + abs(pos_king[1] - j))
-        return sum(dist)/len(dist)
+        avg_dist = self.MAX_DIST_TO_KING if len(dist) == 0 else (sum(dist)/len(dist))
+        return 1 - (avg_dist / self.MAX_DIST_TO_KING)
 
 
     """
-        Determines the threat ratio of the pawns of a certain color (king included).
-        The surrounding ratio is 1 if all the pawns are surrounded 
-        (i.e. any pawn is missing a single opponent pawn to be captured)
-        and is 0 if none of the pawns are close to opponent pawns or walls.
+        Determines the safeness ratio of the pawns of a certain color (king included).
+        The safeness ratio is 0 if all the pawns are surrounded 
+        (i.e. all pawns are missing a single opponent pawn to be captured)
+        and is 1 if none of the pawns are close to opponent pawns or walls.
         
         Parameters
         ----------
@@ -622,16 +626,13 @@ cdef class State:
 
         Returns
         -------
-            threat_ratio : score_t
+            threat_ratio : float
     """
-    @cython.boundscheck(False)
-    @cython.wraparound(False)
-    # @cython.cdivision(True)
-    cdef score_t __threatRatio(self, char color):
+    cdef score_t __safenessRatio(self, char color):
+        cdef int i, j
         cdef int threats = 0
         cdef int total_possible_threats = 0
-        cdef int i, j
-        
+
         for i in range(self.N_ROWS):
             for j in range(self.N_COLS):
                 if (i, j) in CAMP_DICT: continue # Black pawns inside a camp are not counted
@@ -647,10 +648,9 @@ cdef class State:
                         if ((self.isCapturingElementFor(i, j, i, j+1) and self.memv_board[i, j-1] == EMPTY) or
                             (self.isCapturingElementFor(i, j, i, j-1) and self.memv_board[i, j+1] == EMPTY)):
                             threats += 1
-        if total_possible_threats == 0:
-            return 0 
-        else:
-            return (threats / total_possible_threats)
+
+        if total_possible_threats == 0: return 1  
+        else: return 1 - (threats / total_possible_threats)
 
 
     """
@@ -658,14 +658,12 @@ cdef class State:
 
         Returns
         -------
-            min_distance : score_t
+            min_distance : float
     """
-    @cython.boundscheck(False)
-    @cython.wraparound(False)
-    cdef score_t __minDistanceToEscape(self):
-        # TODO What if none are free
+    cdef score_t __minDistanceToEscapeRatio(self):
         cdef Coord pos_king = tuple(np.argwhere(self.board == KING)[0])
-        cdef int m = 100, dist
+        cdef int m = self.MAX_DIST_TO_ESCAPE
+        cdef int dist
         cdef Coord t
 
         for t in ESCAPE_TILES:
@@ -673,4 +671,4 @@ cdef class State:
                 dist = abs(pos_king[0] - t[0]) + abs(pos_king[1] - t[1])
                 if dist < m:
                     m = dist
-        return m          
+        return m / self.MAX_DIST_TO_ESCAPE

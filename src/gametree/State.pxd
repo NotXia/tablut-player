@@ -32,6 +32,8 @@ cdef class State:
     cdef unsigned short N_COLS
     cdef unsigned short N_WHITES
     cdef unsigned short N_BLACKS 
+    cdef int MAX_DIST_TO_KING
+    cdef int MAX_DIST_TO_ESCAPE
 
     cdef char getGameState(self)
     cdef bint isValidCell(self, int i, int j)
@@ -49,9 +51,10 @@ cdef class State:
     cdef list[tuple[Coord, char]] applyMove(self, Coord start, Coord end)
     cdef void revertMove(self, Coord old_start, Coord old_end, list[tuple[Coord, char]] captured)
 
-    cdef score_t evaluate(self, char player_color)
-    cdef score_t heuristics(self, char player_color)
-    cdef int __countPawn(self, char color)
-    cdef score_t __avgDistanceToKing(self, char color)
-    cdef score_t __threatRatio(self, char color)
-    cdef score_t __minDistanceToEscape(self)
+    cdef score_t evaluate(self, char player_color, float[:] positive_weights, float[:] negative_weights)
+    cdef score_t heuristics(self, char player_color, float[:] positive_weights, float[:] negative_weights)
+    cdef score_t __pawnRatio(self, char color)
+    cdef score_t __avgProximityToKingRatio(self, char color)
+    cdef score_t __safenessRatio(self, char color)
+    cdef score_t __minDistanceToEscapeRatio(self)
+
