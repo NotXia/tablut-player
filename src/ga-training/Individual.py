@@ -58,7 +58,7 @@ class Individual:
         return Individual({
             "early": {
                 "positive" : self.early_positive.crossover(indiv.early_positive),
-                "negative" : self.early_negative.crossover(indiv.early_positive)
+                "negative" : self.early_negative.crossover(indiv.early_negative)
             },
             "mid": {
                 "positive" : self.mid_positive.crossover(indiv.mid_positive),
@@ -85,3 +85,11 @@ class Individual:
         if random.random() < mutation_prob: self.late_positive.mutation(getSign() * mutation_val)
         if random.random() < mutation_prob: self.late_negative.mutation(getSign() * mutation_val)
    
+
+    def __str__(self):
+        return (
+            f"Fitness={f'{self.fitness:.3f}' if self.fitness is not None else 'None'}\n" +
+            f"Early {self.early_positive} | {self.early_negative}\n" +
+            f"Mid   {self.mid_positive} | {self.mid_negative}\n" +
+            f"Late  {self.late_positive} | {self.late_negative}"
+        )

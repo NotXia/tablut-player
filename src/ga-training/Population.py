@@ -43,7 +43,7 @@ class Population:
         Makes each individual of this population to play against a given opponent.
         The fitness of each individual is updated.
     """
-    def fight(self, env:Environment, opponent:Individual) -> int:
+    def fight(self, env:Environment, opponent:Individual, logger, epoch) -> int:
         num_wins = 0
 
         for indiv in self.individuals:
@@ -51,10 +51,13 @@ class Population:
             opponent.play()
             print("Starting game engine")
             winner, white_moves, black_moves = env.startGame()
+            print(f"{'WHITE WINS' if winner == WHITE_WIN else 'BLACK WINS' if winner == BLACK_WIN else 'DRAW'} | {white_moves} white moves, {black_moves} black moves")
             indiv.fitness = self.fitness(winner, white_moves, black_moves)
 
             if (winner == WHITE_WIN and self.color == WHITE) or (winner == BLACK_WIN and self.color == BLACK):
                 num_wins += 1
+
+            logger.update("whites" if self.color == WHITE else "blacks", self, epoch)
 
         return num_wins
             
@@ -113,3 +116,12 @@ class Population:
             return curr_best
         except:
             return self.individuals[0]
+        
+
+    def __str__(self):
+        out = (
+            f"--- Best ---\n{self.getBestIndividual()}\n------------\n"
+        )
+        for indiv in self.individuals:
+            out += f"{indiv}\n\n"
+        return out[:-2]

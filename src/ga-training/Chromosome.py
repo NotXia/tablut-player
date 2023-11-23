@@ -18,13 +18,13 @@ class Chromosome:
         between the i-th genes of the parents.
     """
     def crossover(self, ch2:Chromosome) -> Chromosome:
-        assert len(self.genes) == ch2.genes
+        assert len(self.genes) == len(ch2.genes)
         new_genes = []
         for i in range(len(self.genes)):
             if random.random() < 0.5:
-                new_genes[i] = self.genes[i]
+                new_genes.append(self.genes[i])
             else:
-                new_genes[i] = ch2.genes[i]
+                new_genes.append(ch2.genes[i])
         return Chromosome(new_genes)
 
     """
@@ -33,3 +33,7 @@ class Chromosome:
     def mutation(self, mutation_val:float):
         self.genes[random.randint(0, len(self.genes)-1)] += mutation_val
         self.genes = softmax(self.genes)
+
+    
+    def __str__(self):
+        return f"[{', '.join([f'{g:.3f}' for g in self.genes])}]"
