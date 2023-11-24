@@ -1,10 +1,7 @@
 from __future__ import annotations
-import numpy as np
 import random
+from utils import softmax
 
-
-def softmax(x):
-    return np.exp(x) / sum(np.exp(x))
 
 
 class Chromosome:
@@ -31,7 +28,13 @@ class Chromosome:
         Randomly increases/decreases a gene.
     """
     def mutation(self, mutation_val:float):
-        self.genes[random.randint(0, len(self.genes)-1)] += mutation_val
+        to_mutate_index = random.randint(0, len(self.genes)-1)
+
+        self.genes[to_mutate_index] += mutation_val
+        for i in range(len(self.genes)):
+            if i == to_mutate_index: continue
+            self.genes[i] -= mutation_val / (len(self.genes)-1)
+
         self.genes = softmax(self.genes)
 
     

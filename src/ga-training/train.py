@@ -3,6 +3,7 @@ from Environment import Environment
 from Population import Population, WHITE, BLACK
 from Logger import Logger
 import json
+from copy import deepcopy
 
 
 DEFAULT_WHITES_STARTING_WEIGHTS = {
@@ -64,27 +65,31 @@ if __name__ == "__main__":
         print(f"<<<<<<<<<< Epoch {epoch+1} -- training {'whites' if who_is_training == WHITE else 'blacks'} >>>>>>>>>>")
 
         if who_is_training == WHITE:
+            logger.update("whites", curr_best_white, white_population, epoch+1)
+            
             opponent = black_population.getBestIndividual() if curr_best_black is None else curr_best_black
             num_wins = white_population.fight(env, opponent, logger, epoch+1, curr_best_white)
 
             epoch_best = white_population.getBestIndividual()
             if (curr_best_white is None) or (epoch_best.fitness > curr_best_white.fitness):
-                curr_best_white = epoch_best
+                curr_best_white = deepcopy(epoch_best)
+                logger.update("whites", curr_best_white, white_population, epoch+1)
 
             white_population.crossovers()
             white_population.mutations(0.1, 0.2)
 
             if num_wins >= int(args.indivs / 2):
                 who_is_training = BLACK
-
-            logger.update("whites", curr_best_white, white_population, epoch+1)
         else:
+            logger.update("blacks", curr_best_black, black_population, epoch+1)
+            
             opponent = white_population.getBestIndividual() if curr_best_white is None else curr_best_white
             num_wins = black_population.fight(env, opponent, logger, epoch+1, curr_best_black)
 
             epoch_best = black_population.getBestIndividual()
             if (curr_best_black is None) or (epoch_best.fitness > curr_best_black.fitness):
-                curr_best_black = epoch_best
+                curr_best_black = deepcopy(epoch_best)
+                logger.update("blacks", curr_best_black, black_population, epoch+1)
 
             black_population.crossovers()
             black_population.mutations(0.1, 0.2)
@@ -92,7 +97,6 @@ if __name__ == "__main__":
             if num_wins >= int(args.indivs / 2):
                 who_is_training = WHITE
 
-            logger.update("blacks", curr_best_black, black_population, epoch+1)
         
         with open(args.output, "w") as f:
             json.dump({

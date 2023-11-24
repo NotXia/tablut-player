@@ -2,7 +2,8 @@ from Individual import Individual, BLACK, WHITE
 from Chromosome import Chromosome
 from Environment import Environment, BLACK_WIN, WHITE_WIN, DRAW
 import numpy as np
-import random
+from utils import softmax
+
 
 
 class Population:
@@ -43,10 +44,10 @@ class Population:
     def fight(self, env:Environment, opponent:Individual, _logger, _epoch, _global_best:Individual) -> int:
         num_wins = 0
 
-        for indiv in self.individuals:
+        for i, indiv in enumerate(self.individuals):
             indiv.play()
             opponent.play()
-            print("Starting game engine")
+            print(f"Starting game engine -- Individual {i}")
             winner, white_moves, black_moves = env.startGame()
             print(f"{'WHITE WINS' if winner == WHITE_WIN else 'BLACK WINS' if winner == BLACK_WIN else 'DRAW'} | {white_moves} white moves, {black_moves} black moves")
             indiv.fitness = self.fitness(winner, white_moves, black_moves)
@@ -83,11 +84,12 @@ class Population:
     """
     def crossovers(self):
         # TODO Improve
-        new_individuals = []
-        parent1: Individual = self.getBestIndividual()
-        for i in range(self.n_individuals):
-            parent2: Individual = random.choice(self.individuals)
-            new_individuals.append( parent1.crossover(parent2) )
+        new_individuals = [self.getBestIndividual()]
+        probabilities = softmax([i.fitness for i in self.individuals])
+        
+        for _ in range(self.n_individuals-1):
+            parents = np.random.choice(self.individuals, p=probabilities, size=2, replace=False)
+            new_individuals.append( parents[0].crossover(parents[1]) )
 
         self.individuals = new_individuals
 
@@ -117,6 +119,6 @@ class Population:
 
     def __str__(self):
         out = ("")
-        for indiv in self.individuals:
-            out += f"{indiv}\n\n"
+        for i, indiv in enumerate(self.individuals):
+            out += f"{i}) {indiv}\n\n"
         return out[:-2]
