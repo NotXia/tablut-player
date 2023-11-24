@@ -98,8 +98,9 @@ class Population:
         Mutates the current population
     """
     def mutations(self, mutation_val, mutation_prob):
-        for indiv in self.individuals:
-            indiv.mutation(mutation_val, mutation_prob)
+        # Skip the first as it is the best one (by crossover definition)
+        for i in range(1, len(self.individuals)):
+            self.individuals[i].mutation(mutation_val, mutation_prob)
 
 
     """
