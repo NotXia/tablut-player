@@ -27,6 +27,10 @@ class Logger:
             self.__clear(self.blacks_log_path)
 
 
-    def update(self, target, population, epoch):
+    def update(self, target, best_indiv, population, epoch):
         # self.__clear(target)
-        self.write(target, f"<<<<<<<<<< Epoch {epoch} - {target} >>>>>>>>>>\n{population}\n\n")
+        self.write(target, 
+            f"<<<<<<<<<< Epoch {epoch} - {target} >>>>>>>>>>\n" +
+            f"--- Global best ---\n{best_indiv}\n------------\n" +
+            f"{population}\n\n"
+        )

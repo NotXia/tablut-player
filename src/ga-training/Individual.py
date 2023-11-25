@@ -2,10 +2,14 @@
 from __future__ import annotations
 import sys, os
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from Player import Player, WHITE, BLACK
+from Player import Player
 import time
 import threading
 import random
+
+WHITE = 1
+BLACK = 2
+
 
 class Individual:
     def __init__(self, chromosomes:dict, color:WHITE|BLACK, timeout:int) -> None:
@@ -85,6 +89,22 @@ class Individual:
         if random.random() < mutation_prob: self.late_positive.mutation(getSign() * mutation_val)
         if random.random() < mutation_prob: self.late_negative.mutation(getSign() * mutation_val)
    
+
+    def export(self):
+        return {
+            "early": {
+                "positive": self.early_positive.genes.tolist(),
+                "negative": self.early_negative.genes.tolist()
+            },
+            "mid": {
+                "positive": self.mid_positive.genes.tolist(),
+                "negative": self.mid_negative.genes.tolist()
+            },
+            "late": {
+                "positive": self.late_positive.genes.tolist(),
+                "negative": self.late_negative.genes.tolist()
+            }
+        }
 
     def __str__(self):
         return (

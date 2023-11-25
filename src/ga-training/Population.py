@@ -1,11 +1,9 @@
-import sys, os
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
-from Player import WHITE, BLACK
-from Individual import Individual
+from Individual import Individual, BLACK, WHITE
 from Chromosome import Chromosome
 from Environment import Environment, BLACK_WIN, WHITE_WIN, DRAW
 import numpy as np
-import random
+from utils import softmax
+
 
 
 class Population:
@@ -43,13 +41,13 @@ class Population:
         Makes each individual of this population to play against a given opponent.
         The fitness of each individual is updated.
     """
-    def fight(self, env:Environment, opponent:Individual, logger, epoch) -> int:
+    def fight(self, env:Environment, opponent:Individual, _logger, _epoch, _global_best:Individual) -> int:
         num_wins = 0
 
-        for indiv in self.individuals:
+        for i, indiv in enumerate(self.individuals):
             indiv.play()
             opponent.play()
-            print("Starting game engine")
+            print(f"Starting game engine -- Individual {i}")
             winner, white_moves, black_moves = env.startGame()
             print(f"{'WHITE WINS' if winner == WHITE_WIN else 'BLACK WINS' if winner == BLACK_WIN else 'DRAW'} | {white_moves} white moves, {black_moves} black moves")
             indiv.fitness = self.fitness(winner, white_moves, black_moves)
@@ -57,7 +55,7 @@ class Population:
             if (winner == WHITE_WIN and self.color == WHITE) or (winner == BLACK_WIN and self.color == BLACK):
                 num_wins += 1
 
-            logger.update("whites" if self.color == WHITE else "blacks", self, epoch)
+            _logger.update("whites" if self.color == WHITE else "blacks", _global_best, self, _epoch)
 
         return num_wins
             
@@ -86,11 +84,12 @@ class Population:
     """
     def crossovers(self):
         # TODO Improve
-        new_individuals = []
-        parent1: Individual = self.getBestIndividual()
-        for i in range(self.n_individuals):
-            parent2: Individual = random.choice(self.individuals)
-            new_individuals.append( parent1.crossover(parent2) )
+        new_individuals = [self.getBestIndividual()]
+        probabilities = softmax([i.fitness for i in self.individuals])
+        
+        for _ in range(self.n_individuals-1):
+            parents = np.random.choice(self.individuals, p=probabilities, size=2, replace=False)
+            new_individuals.append( parents[0].crossover(parents[1]) )
 
         self.individuals = new_individuals
 
@@ -99,8 +98,9 @@ class Population:
         Mutates the current population
     """
     def mutations(self, mutation_val, mutation_prob):
-        for indiv in self.individuals:
-            indiv.mutation(mutation_val, mutation_prob)
+        # Skip the first as it is the best one (by crossover definition)
+        for i in range(1, len(self.individuals)):
+            self.individuals[i].mutation(mutation_val, mutation_prob)
 
 
     """
@@ -119,9 +119,7 @@ class Population:
         
 
     def __str__(self):
-        out = (
-            f"--- Best ---\n{self.getBestIndividual()}\n------------\n"
-        )
-        for indiv in self.individuals:
-            out += f"{indiv}\n\n"
+        out = ("")
+        for i, indiv in enumerate(self.individuals):
+            out += f"{i}) {indiv}\n\n"
         return out[:-2]

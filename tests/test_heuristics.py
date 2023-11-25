@@ -146,7 +146,7 @@ class TestState(unittest.TestCase):
 
      def test_minDistanceToEscapeRatio(self):
           s = State(initial_state, True)
-          self.assertEqual(s._State__minDistanceToEscapeRatio(), 6/s.MAX_DIST_TO_ESCAPE)
+          self.assertEqual(s._State__minDistanceToEscapeRatio(), 1 - 6/s.MAX_DIST_TO_ESCAPE)
 
           s = State(np.array(
                [[E,E,E,E,E,E,E,E,E],
@@ -158,7 +158,7 @@ class TestState(unittest.TestCase):
                 [E,E,E,E,E,E,E,E,E],
                 [E,E,E,E,E,E,E,E,E],
                 [E,E,E,E,E,E,E,E,E]], dtype=np.byte), True)
-          self.assertEqual(s._State__minDistanceToEscapeRatio(), 1/s.MAX_DIST_TO_ESCAPE)
+          self.assertEqual(s._State__minDistanceToEscapeRatio(), 1 - 1/s.MAX_DIST_TO_ESCAPE)
 
           s = State(np.array(
                [[E,W,W,E,E,E,E,E,E],
@@ -170,7 +170,7 @@ class TestState(unittest.TestCase):
                 [E,E,E,E,E,E,E,E,E],
                 [E,E,E,E,E,E,E,E,E],
                 [E,E,E,E,E,E,E,E,E]], dtype=np.byte), True)
-          self.assertEqual(s._State__minDistanceToEscapeRatio(), 5/s.MAX_DIST_TO_ESCAPE)
+          self.assertEqual(s._State__minDistanceToEscapeRatio(), 1 - 5/s.MAX_DIST_TO_ESCAPE)
 
           s = State(np.array(
                [[E,W,W,E,E,E,W,W,E],
@@ -182,7 +182,7 @@ class TestState(unittest.TestCase):
                 [W,E,E,E,E,E,E,E,W],
                 [W,E,E,E,E,E,E,E,W],
                 [E,W,W,E,E,E,W,E,E]], dtype=np.byte), True)
-          self.assertEqual(s._State__minDistanceToEscapeRatio(), 13/s.MAX_DIST_TO_ESCAPE)
+          self.assertEqual(s._State__minDistanceToEscapeRatio(), 1 - 13/s.MAX_DIST_TO_ESCAPE)
 
 
 if __name__ == "__main__":
