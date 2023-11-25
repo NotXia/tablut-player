@@ -84,6 +84,13 @@ cdef class State:
     def __str__(self):
         return f"WhiteTurn = {self.is_white_turn}\n {str(self.board)}"
 
+
+    cdef Coord __findKing(self):
+        for i in range(self.N_ROWS):
+            for j in range(self.N_COLS):
+                if self.memv_board[i, j] == KING:
+                    return (i, j)
+        return NULL_COORD
     
     """
         Determines the possible allowed moves from the current state of the booard.
@@ -100,7 +107,7 @@ cdef class State:
     @cython.wraparound(False)
     @cython.cdivision(True)
     cdef tuple[list[Move], list[Move]] getMoves(self):
-        cdef Coord pos_king = tuple(np.argwhere(self.board == KING)[0])
+        cdef Coord pos_king = self.__findKing()
         cdef char pawn = WHITE if self.is_white_turn else BLACK
 
         cdef list[Move] king_moves = []
@@ -259,11 +266,11 @@ cdef class State:
     @cython.wraparound(False)
     @cython.cdivision(True)
     cdef char getGameState(self):
-        cdef cnp.ndarray pos_king = np.argwhere(self.board == KING)
+        cdef Coord pos_king = self.__findKing()
         
-        if len(pos_king) == 0:
+        if pos_king == NULL_COORD:
             return BLACK_WIN
-        elif ((pos_king[0][0], pos_king[0][1]) in ESCAPE_TILES):
+        elif pos_king in ESCAPE_TILES:
             return WHITE_WIN
         return OPEN  
               
@@ -581,7 +588,10 @@ cdef class State:
             num_pawns : int
     """
     cdef score_t __pawnRatio(self, char color):
-        cdef int count = np.sum(self.board == color)
+        cdef int count = 0
+        for i in range(self.N_ROWS):
+            for j in range(self.N_COLS):
+                if self.memv_board[i, j] == color: count += 1
         if color == WHITE: return count / self.N_WHITES
         else: return count / self.N_BLACKS
 
@@ -601,7 +611,7 @@ cdef class State:
             avg_proximity_ratio : float
     """
     cdef score_t __avgProximityToKingRatio(self, char color):
-        cdef Coord pos_king = tuple(np.argwhere(self.board == KING)[0])
+        cdef Coord pos_king = self.__findKing()
         cdef list[int] dist = []
         cdef int i, j
 
@@ -661,7 +671,7 @@ cdef class State:
             min_distance : float
     """
     cdef score_t __minDistanceToEscapeRatio(self):
-        cdef Coord pos_king = tuple(np.argwhere(self.board == KING)[0])
+        cdef Coord pos_king = self.__findKing()
         cdef int m = self.MAX_DIST_TO_ESCAPE
         cdef int dist
         cdef Coord t

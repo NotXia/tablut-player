@@ -35,6 +35,7 @@ cdef class State:
     cdef int MAX_DIST_TO_KING
     cdef int MAX_DIST_TO_ESCAPE
 
+    cdef Coord __findKing(self)
     cdef char getGameState(self)
     cdef bint isValidCell(self, int i, int j)
     cdef bint isWall(self, int i, int j)
