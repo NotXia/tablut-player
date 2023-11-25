@@ -671,4 +671,4 @@ cdef class State:
                 dist = abs(pos_king[0] - t[0]) + abs(pos_king[1] - t[1])
                 if dist < m:
                     m = dist
-        return m / self.MAX_DIST_TO_ESCAPE
+        return 1 - (m / self.MAX_DIST_TO_ESCAPE)
