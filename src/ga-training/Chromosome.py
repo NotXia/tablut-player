@@ -1,12 +1,12 @@
 from __future__ import annotations
 import random
-from utils import softmax
+from utils import normalize
 
 
 
 class Chromosome:
     def __init__(self, genes:list[float]) -> None:
-        self.genes = softmax(genes)
+        self.genes = normalize(genes)
 
     """
         Creates a new cromosome as the combination
@@ -35,7 +35,7 @@ class Chromosome:
             if i == to_mutate_index: continue
             self.genes[i] -= mutation_val / (len(self.genes)-1)
 
-        self.genes = softmax(self.genes)
+        self.genes = normalize(self.genes)
 
     
     def __str__(self):

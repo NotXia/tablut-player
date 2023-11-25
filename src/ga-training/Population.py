@@ -13,12 +13,12 @@ class Population:
         self.color = color
 
         for i in range(n_individuals):
-            early_positive = np.array(initial_weights['early']['positive']) + np.random.rand(len(initial_weights['early']['positive']))
-            early_negative = np.array(initial_weights['early']['negative']) + np.random.rand(len(initial_weights['early']['negative']))
-            mid_positive = np.array(initial_weights['mid']['positive']) + np.random.rand(len(initial_weights['mid']['positive']))
-            mid_negative = np.array(initial_weights['mid']['negative']) + np.random.rand(len(initial_weights['mid']['negative']))
-            late_positive = np.array(initial_weights['late']['positive']) + np.random.rand(len(initial_weights['late']['positive']))
-            late_negative = np.array(initial_weights['late']['negative']) + np.random.rand(len(initial_weights['late']['negative']))
+            early_positive = (np.array(initial_weights['early']['positive']) + np.random.rand(len(initial_weights['early']['positive']))).tolist()
+            early_negative = (np.array(initial_weights['early']['negative']) + np.random.rand(len(initial_weights['early']['negative']))).tolist()
+            mid_positive = (np.array(initial_weights['mid']['positive']) + np.random.rand(len(initial_weights['mid']['positive']))).tolist()
+            mid_negative = (np.array(initial_weights['mid']['negative']) + np.random.rand(len(initial_weights['mid']['negative']))).tolist()
+            late_positive = (np.array(initial_weights['late']['positive']) + np.random.rand(len(initial_weights['late']['positive']))).tolist()
+            late_negative = (np.array(initial_weights['late']['negative']) + np.random.rand(len(initial_weights['late']['negative']))).tolist()
             self.individuals.append(
                 Individual({
                     "early": {
