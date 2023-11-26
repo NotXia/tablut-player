@@ -1,18 +1,19 @@
 DEF DEBUG = True
 
+cimport cython
 from cpython cimport array
 import numpy as np
 cimport numpy as cnp
 cnp.import_array()
 from .State cimport State, OPEN, WHITE, BLACK, MAX_SCORE, MIN_SCORE
 from .TreeNode cimport TreeNode
-from libc.time cimport time
-from libc.stdlib cimport malloc
+from libc.time cimport time, time_t
 import logging
 logger = logging.getLogger(__name__)
 
-
-cdef score_t TIMEOUT = MIN_SCORE - 100.0
+cdef score_t TIMEOUT = MIN_SCORE - 1000.0
+cdef score_t PLUS_INFINITY = MAX_SCORE + 100.0
+cdef score_t MINUS_INFINITY = MIN_SCORE - 100.0
 
 
 """
@@ -62,7 +63,7 @@ cdef class Tree():
             self.__explored_nodes = 0
         
         self.turns_count += 1
-        cdef int end_timestamp = time(NULL) + timeout
+        cdef time_t end_timestamp = time(NULL) + timeout
         cdef TreeNode best_child = None, child
         cdef int depth = 0
         cdef score_t best_score = MIN_SCORE, curr_best_score
@@ -83,7 +84,7 @@ cdef class Tree():
         else:
             while time(NULL) < end_timestamp:
                 depth += 1
-                curr_best_score = self.minimax(self.root, depth, -np.inf, +np.inf, end_timestamp)
+                curr_best_score = self.minimax(self.root, depth, MINUS_INFINITY, PLUS_INFINITY, end_timestamp)
                 if curr_best_score == TIMEOUT:
                     depth -= 1
                     break
@@ -173,7 +174,11 @@ cdef class Tree():
             best_score : score_t
                 Best children's score found.
     """
-    cdef score_t minimax(self, TreeNode tree_node, int max_depth, score_t alpha, score_t beta, int timeout_timestamp):
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.initializedcheck(False)
+    cdef score_t minimax(self, TreeNode tree_node, int max_depth, score_t alpha, score_t beta, time_t timeout_timestamp):
+        if time(NULL) >= timeout_timestamp: return TIMEOUT # Timeout
         IF DEBUG:
             self.__explored_nodes += 1
 
@@ -186,10 +191,8 @@ cdef class Tree():
             if ((self.state.is_white_turn and self.player_color == WHITE) or
                 (not self.state.is_white_turn and self.player_color == BLACK)):
                 # Max
-                eval = -np.inf
+                eval = MINUS_INFINITY
                 for child in tree_node.getChildren(self.state):
-                    if time(NULL) >= timeout_timestamp: return TIMEOUT # Timeout
-                    
                     captured = self.state.applyMove(child.start, child.end)
                     eval_minimax = self.minimax(child, max_depth-1, alpha, beta, timeout_timestamp)
                     self.state.revertMove(child.start, child.end, captured)
@@ -201,10 +204,8 @@ cdef class Tree():
                     if eval >= beta: break # cutoff
             else:
                 # Min
-                eval = np.inf
+                eval = PLUS_INFINITY
                 for child in tree_node.getChildren(self.state):
-                    if time(NULL) >= timeout_timestamp: return TIMEOUT # Timeout
-
                     captured = self.state.applyMove(child.start, child.end)
                     eval_minimax = self.minimax(child, max_depth-1, alpha, beta, timeout_timestamp)
                     self.state.revertMove(child.start, child.end, captured)

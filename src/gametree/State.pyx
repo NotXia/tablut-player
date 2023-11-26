@@ -23,6 +23,8 @@ cdef char DOWN = 8
 cdef char RIGHT = 9
 cdef char LEFT = 10
 
+cdef char[4] DIRECTIONS = {UP, DOWN, RIGHT, LEFT}
+
 cdef char VERTICAL = 11
 cdef char HORIZONTAL = 12
 cdef char VERT_HORIZ = 13
@@ -65,6 +67,7 @@ cdef list[Coord] NEAR_CASTLE_TILES = [(3, 4), (5, 4), (4, 3), (4, 5)]
 cdef class State:
     @cython.boundscheck(False)
     @cython.wraparound(False)
+    @cython.initializedcheck(False)
     def __init__(self, cnp.ndarray[cnp.npy_byte, ndim=2] board, bint is_white_turn, str rules="ashton"):
         self.board = board
         self.memv_board = memoryview(board)
@@ -85,6 +88,9 @@ cdef class State:
         return f"WhiteTurn = {self.is_white_turn}\n {str(self.board)}"
 
 
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.initializedcheck(False)
     cdef Coord __findKing(self):
         for i in range(self.N_ROWS):
             for j in range(self.N_COLS):
@@ -106,6 +112,7 @@ cdef class State:
     @cython.boundscheck(False)
     @cython.wraparound(False)
     @cython.cdivision(True)
+    @cython.initializedcheck(False)
     cdef tuple[list[Move], list[Move]] getMoves(self):
         cdef Coord pos_king = self.__findKing()
         cdef char pawn = WHITE if self.is_white_turn else BLACK
@@ -118,6 +125,7 @@ cdef class State:
         
         cdef int i, j
         cdef Move m
+        cdef Coord start, end
 
         if self.is_white_turn:
             # If White turn, check KING moves
@@ -147,8 +155,10 @@ cdef class State:
         cdef char direction
         cdef int n, step
         cdef Coord target
+        cdef int k
 
-        for direction in [RIGHT, UP, LEFT, DOWN]:
+        for k in range(4):
+            direction = DIRECTIONS[k]
             n = self.numSteps(i, j, direction)
             for step in range(1, n+1):
                 if direction == RIGHT:
@@ -189,6 +199,7 @@ cdef class State:
     @cython.boundscheck(False)
     @cython.wraparound(False)
     @cython.cdivision(True)
+    @cython.initializedcheck(False)
     cdef list[tuple[Coord, char]] applyMove(self, Coord start, Coord end):
         cdef list[tuple[Coord, char]] captured = []
 
@@ -236,6 +247,7 @@ cdef class State:
     @cython.boundscheck(False)
     @cython.wraparound(False)
     @cython.cdivision(True)
+    @cython.initializedcheck(False)
     cdef void revertMove(self, Coord old_start, Coord old_end, list[tuple[Coord, char]] captured):
         cdef tuple[Coord, char] el
         cdef Coord pos
@@ -331,6 +343,7 @@ cdef class State:
     @cython.boundscheck(False)
     @cython.wraparound(False)
     @cython.cdivision(True)
+    @cython.initializedcheck(False)
     cdef bint isCaptured(self, int i, int j, char to_filter_axis=VERT_HORIZ):
         cdef int cnt_black
         cdef int k
@@ -341,7 +354,7 @@ cdef class State:
         if self.memv_board[i, j] == EMPTY:
             return False
         # King captured in castle
-        elif (self.memv_board[i, j] == KING and (i, j) == CASTLE_TILE):
+        elif (self.memv_board[i, j] == KING and (CASTLE_TILE[0] == i and CASTLE_TILE[1] == j)):
             return (
                 self.memv_board[i+1, j] == BLACK and
                 self.memv_board[i-1, j] == BLACK and
@@ -351,11 +364,11 @@ cdef class State:
         # King captured near castle
         elif (self.memv_board[i, j] == KING and (i, j) in NEAR_CASTLE_TILES):
             cnt_black = 0
-            for k in (+1, -1): # Coordinates increment
-                if (i+k, j) != CASTLE_TILE:
+            for k in range(-1, 2, 2): # Coordinates increment
+                if (i+k != CASTLE_TILE[0]) or (j != CASTLE_TILE[1]):
                     if self.memv_board[i+k, j] == BLACK:
                         cnt_black += 1
-                if (i, j+k) != CASTLE_TILE:
+                if (i != CASTLE_TILE[0]) or (j+k != CASTLE_TILE[1]):
                     if self.memv_board[i, j+k] == BLACK:
                         cnt_black += 1
             if cnt_black == 3:
@@ -365,12 +378,12 @@ cdef class State:
             is_vertically_captured = False
             is_horizontally_captured = False
             
-            if to_filter_axis is None or to_filter_axis == VERTICAL:
+            if (to_filter_axis == VERT_HORIZ) or (to_filter_axis == VERTICAL):
                 is_vertically_captured = (
                     self.isValidCell(i+1, j) and self.isValidCell(i-1, j) and
                     self.isCapturingElementFor(i, j, i+1, j) and self.isCapturingElementFor(i, j, i-1, j)
                 )
-            if to_filter_axis is None or to_filter_axis == HORIZONTAL:
+            if (to_filter_axis == VERT_HORIZ) or (to_filter_axis == HORIZONTAL):
                 is_horizontally_captured = (
                     self.isValidCell(i, j+1) and self.isValidCell(i, j-1) and
                     self.isCapturingElementFor(i, j, i, j+1) and self.isCapturingElementFor(i, j, i, j-1)
@@ -401,6 +414,7 @@ cdef class State:
     @cython.boundscheck(False)
     @cython.wraparound(False)
     @cython.cdivision(True)
+    @cython.initializedcheck(False)
     cdef bint isObstacle(self, int i, int j, char num_camp=NO_CAMP):
         
         # Out of the board
@@ -441,6 +455,7 @@ cdef class State:
     @cython.boundscheck(False)
     @cython.wraparound(False)
     @cython.cdivision(True)
+    @cython.initializedcheck(False)
     cdef bint isCapturingElementFor(self, int pawn_i, int pawn_j, int check_i, int check_j):
         
         if self.memv_board[pawn_i, pawn_j] == WHITE or self.memv_board[pawn_i, pawn_j] == KING:
@@ -467,6 +482,7 @@ cdef class State:
     @cython.boundscheck(False)
     @cython.wraparound(False)
     @cython.cdivision(True)
+    @cython.initializedcheck(False)
     cdef char getCampOfPawnAt(self, int i, int j):
 
         if self.memv_board[i,j] != BLACK:
@@ -546,6 +562,8 @@ cdef class State:
         -------
             score : score_t
     """
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
     cdef score_t heuristics(self, char player_color, float[:] positive_weights, float[:] negative_weights):
         if player_color == WHITE:
             return (
@@ -587,6 +605,9 @@ cdef class State:
         -------
             num_pawns : int
     """
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.initializedcheck(False)
     cdef score_t __pawnRatio(self, char color):
         cdef int count = 0
         for i in range(self.N_ROWS):
@@ -610,10 +631,14 @@ cdef class State:
         -------
             avg_proximity_ratio : float
     """
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.initializedcheck(False)
     cdef score_t __avgProximityToKingRatio(self, char color):
         cdef Coord pos_king = self.__findKing()
         cdef list[int] dist = []
         cdef int i, j
+        cdef float avg_dist
 
         for i in range(self.N_ROWS):
             for j in range(self.N_COLS):
@@ -638,6 +663,9 @@ cdef class State:
         -------
             threat_ratio : float
     """
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.initializedcheck(False)
     cdef score_t __safenessRatio(self, char color):
         cdef int i, j
         cdef int threats = 0
@@ -670,6 +698,9 @@ cdef class State:
         -------
             min_distance : float
     """
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.initializedcheck(False)
     cdef score_t __minDistanceToEscapeRatio(self):
         cdef Coord pos_king = self.__findKing()
         cdef int m = self.MAX_DIST_TO_ESCAPE

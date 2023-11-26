@@ -1,6 +1,7 @@
 from .State cimport State
 from .TreeNode cimport TreeNode
 from .utils cimport *
+from libc.time cimport time_t
 
 cdef class Tree():
     cdef State state
@@ -21,4 +22,4 @@ cdef class Tree():
 
     cdef void __updateWeights(self)
     cpdef tuple[Coord, Coord, score_t] decide(self, int timeout)
-    cdef score_t minimax(self, TreeNode tree_node, int max_depth, score_t alpha, score_t beta, int timeout_timestamp)
+    cdef score_t minimax(self, TreeNode tree_node, int max_depth, score_t alpha, score_t beta, time_t timeout_timestamp)
