@@ -170,6 +170,7 @@ class Tree():
         if self.state.getGameState() != OPEN or max_depth == 0:
             eval = self.state.evaluate(
                 self.player_color,
+                max_depth,
                 self.curr_positive_weights,
                 self.curr_negative_weights,
             )

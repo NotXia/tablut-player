@@ -471,15 +471,16 @@ class State():
     """
     def evaluate(self, 
             player_color:BLACK|WHITE,
+            max_depth: int,
             positive_weights:list[float],
             negative_weights:list[float],
         )->float:
         game_state = self.getGameState()
         
         if game_state == BLACK_WIN: 
-           return MAX_SCORE if player_color == BLACK else MIN_SCORE
+           return (MAX_SCORE+max_depth) if player_color == BLACK else (MIN_SCORE-max_depth)
         elif game_state == WHITE_WIN:
-            return MAX_SCORE if player_color == WHITE else MIN_SCORE
+            return (MAX_SCORE+max_depth) if player_color == WHITE else (MIN_SCORE-max_depth)
         else:
             return self.heuristics(
                 player_color, 
