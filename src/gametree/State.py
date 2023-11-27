@@ -2,10 +2,15 @@ from __future__ import annotations
 import numpy as np
 import numpy.typing as npt
 from typing import Generator
+import random
+import math
 import cython
 import logging
 logger = logging.getLogger(__name__)
 if not cython.compiled: logger.warning(f"Using non-compiled {__file__} module")
+
+random.seed(42)
+np.random.seed(42)
 
 
 MAX_SCORE = 1000
@@ -57,6 +62,22 @@ CAMP_DICT = {
 CASTLE_TILE = (4, 4)
 NEAR_CASTLE_TILES = [(3, 4), (5, 4), (4, 3), (4, 5)]
 
+zobrist_table = np.random.randint(-1e8, 1e8, size=(9, 9, 3))
+zobrist_black = random.randint(-1e8, 1e8)
+
+
+def zobristHash(board, n_rows, n_cols, is_white_turn):
+    state_hash = 0
+
+    if not is_white_turn: state_hash ^= zobrist_black
+    for i in range(n_rows):
+        for j in range(n_cols):
+            if board[i, j] == KING: state_hash ^= zobrist_table[i, j, 0]
+            elif board[i, j] == WHITE: state_hash ^= zobrist_table[i, j, 1]
+            elif board[i, j] == BLACK: state_hash ^= zobrist_table[i, j, 2]
+
+    return int(state_hash)
+
 
 """
     Simple class to represent the state of the game.
@@ -81,7 +102,68 @@ class State():
     def __str__(self):
         return f"WhiteTurn = {self.is_white_turn}\n {str(self.board)}"
 
+
+    def __hash__(self):
+        return self.hash(normalize=True)
+
+
+    """
+        Computes the Zobrist hash of the current state.
+
+        Parameters
+        ----------
+            normalize : bool
+                If True, the board will be normalized with rotations and flips.
+                If False, the hash will be computed on the board as is.
+
+        Returns
+        -------
+            hash : int
+    """
+    def hash(self, normalize=False):
+        if normalize:
+            return zobristHash(self.getNormalizedBoard(), self.N_ROWS, self.N_COLS, self.is_white_turn)
+        else:
+            return zobristHash(self.board, self.N_ROWS, self.N_COLS, self.is_white_turn)
+
     
+    """
+        Produces a normalized version of the current board
+        where the king is in the first upper-quadrant.
+
+        Returns
+        -------
+            normalized_board : np.array
+    """
+    def getNormalizedBoard(self):
+        pos_king = np.argwhere(self.board == KING)
+        if len(pos_king) == 0: return self.board
+        pos_king = tuple(pos_king[0])
+
+        if (pos_king[0] <= math.floor(self.N_ROWS/2)) and (pos_king[1] >= math.ceil(self.N_COLS/2)):
+            if pos_king[0] + pos_king[1] >= self.N_COLS-1:
+                return np.rot90(self.board, k=1)
+            else:
+                return np.flip(self.board, axis=1)
+        elif (pos_king[0] >= math.ceil(self.N_ROWS/2)) and (pos_king[1] >= math.floor(self.N_COLS/2)):
+            if pos_king[0] >= pos_king[1]:
+                return np.rot90(self.board, k=2)
+            else:
+                return np.rot90(np.flip(self.board, axis=0), k=1)
+        elif (pos_king[0] >= math.floor(self.N_ROWS/2)) and (pos_king[1] <= (math.floor(self.N_COLS/2)-1)):
+            if pos_king[0] + pos_king[1] <= self.N_COLS-1:
+                return np.rot90(self.board, k=3)
+            else:
+                return np.flip(self.board, axis=0)
+        elif (pos_king[0] <= (math.floor(self.N_ROWS/2)-1)) and (pos_king[1] <= (math.floor(self.N_COLS/2)-2)):
+            if pos_king[0] > pos_king[1]:
+                return np.rot90(np.flip(self.board, axis=1), k=1)
+            else:
+                return self.board
+        else:
+            return self.board
+
+
     """
         Determines the possible allowed moves from the current state of the booard.
 
