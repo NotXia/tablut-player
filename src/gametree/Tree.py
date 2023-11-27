@@ -178,7 +178,7 @@ class Tree():
                 (not self.state.is_white_turn and self.player_color == BLACK)):
                 # Max
                 eval = -np.inf
-                for child in tree_node.getChildren(self.state):
+                for i, child in enumerate(tree_node.getChildren(self.state)):
                     if time.time() >= timeout_timestamp: return None # Timeout
                     
                     captured = self.state.applyMove(child.start, child.end)
@@ -187,13 +187,16 @@ class Tree():
                     
                     if eval_minimax is None: return None # Timeout
                     
-                    eval = max(eval, eval_minimax)
+                    # eval = max(eval, eval_minimax)
+                    if eval_minimax > eval:
+                        eval = eval_minimax
+                        tree_node.prioritizeChild(i)
                     alpha = max(eval, alpha)
                     if eval >= beta: break # cutoff
             else:
                 # Min
                 eval = np.inf
-                for child in tree_node.getChildren(self.state):
+                for i, child in enumerate(tree_node.getChildren(self.state)):
                     if time.time() >= timeout_timestamp: return None # Timeout
 
                     captured = self.state.applyMove(child.start, child.end)
@@ -202,7 +205,10 @@ class Tree():
                     
                     if eval_minimax is None: return None # Timeout
 
-                    eval = min(eval, eval_minimax)
+                    # eval = min(eval, eval_minimax)
+                    if eval_minimax < eval:
+                        eval = eval_minimax
+                        tree_node.prioritizeChild(i)
                     beta = min(eval, beta)
                     if eval <= alpha: break # cutoff
 

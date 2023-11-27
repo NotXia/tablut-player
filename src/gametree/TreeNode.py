@@ -46,3 +46,7 @@ class TreeNode():
         # Children of this node already generated
         for child in self.children:
             yield child
+
+
+    def prioritizeChild(self, index:int):
+        self.children.insert(0, self.children.pop(index))
