@@ -27,10 +27,17 @@ class Logger:
             self.__clear(self.blacks_log_path)
 
 
-    def update(self, target, best_indiv, population, epoch):
+    def update(self, target, population, epoch):
         # self.__clear(target)
         self.write(target, 
             f"<<<<<<<<<< Epoch {epoch} - {target} >>>>>>>>>>\n" +
-            f"--- Global best ---\n{best_indiv}\n------------\n" +
             f"{population}\n\n"
         )
+
+
+    def saveHistory(self, file, target, population, epoch):
+        with open(file, "a") as f:
+            f.write(
+                f"<<<<<<<<<< Epoch {epoch} - {target} >>>>>>>>>>\n" +
+                f"{population}\n\n"
+            )

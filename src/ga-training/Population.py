@@ -41,7 +41,7 @@ class Population:
         Makes each individual of this population to play against a given opponent.
         The fitness of each individual is updated.
     """
-    def fight(self, env:Environment, opponent:Individual, _logger, _epoch, _global_best:Individual) -> int:
+    def fight(self, env:Environment, opponent:Individual, _logger, _epoch) -> int:
         num_wins = 0
 
         for i, indiv in enumerate(self.individuals):
@@ -55,7 +55,7 @@ class Population:
             if (winner == WHITE_WIN and self.color == WHITE) or (winner == BLACK_WIN and self.color == BLACK):
                 num_wins += 1
 
-            _logger.update("whites" if self.color == WHITE else "blacks", _global_best, self, _epoch)
+            _logger.update("whites" if self.color == WHITE else "blacks", self, _epoch)
 
         return num_wins
             

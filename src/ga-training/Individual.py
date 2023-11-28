@@ -44,8 +44,8 @@ class Individual:
             print(f"Starting {my_color_str} player")
             player = Player(my_color_str, weights=weights, timeout=self.timeout)
             player.play()
-        except:
-            print(f"Cannot start {my_color_str} player")
+        except Exception as e:
+            print(f"Cannot start {my_color_str} player: {e}")
 
     """
         Starts the player.
