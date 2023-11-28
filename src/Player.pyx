@@ -159,7 +159,7 @@ class Player:
             start_pos, end_pos, score = self.game_tree.decide(self.timeout-self.timeout_tol)
             if self.debug:
                 end_time = time.time()
-                logger.debug(f"[{end_time-start_time:.2f} s] Best move {start_pos} -> {end_pos} ({score:.3f})")
+                logger.debug(f"[{end_time-start_time:.2f} s] Best move {start_pos} -> {end_pos} [{fromIndexToLetters(start_pos)} -> {fromIndexToLetters(end_pos)}] ({score:.3f})")
 
             sendMoveToServer(self.sock, start_pos, end_pos, self.my_color)
 

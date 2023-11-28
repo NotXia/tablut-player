@@ -9,3 +9,4 @@ cdef class TreeNode:
     cdef unsigned int critical_len
 
     cdef list[TreeNode] getChildren(self, State state)
+    cdef prioritizeChild(self, int index)

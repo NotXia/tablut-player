@@ -39,3 +39,7 @@ cdef class TreeNode:
                 
         # Children of this node already generated
         return self.children
+
+
+    cdef prioritizeChild(self, int index):
+        self.children.insert(0, self.children.pop(index))

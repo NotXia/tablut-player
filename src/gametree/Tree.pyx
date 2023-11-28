@@ -7,6 +7,7 @@ cimport numpy as cnp
 cnp.import_array()
 from .State cimport State, OPEN, WHITE, BLACK, MAX_SCORE, MIN_SCORE
 from .TreeNode cimport TreeNode
+from .TranspositionTable cimport TranspositionTable, TraspositionEntry, EXACT, LOWERBOUND, UPPERBOUND
 from libc.time cimport time, time_t
 import logging
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ cdef class Tree():
         self.player_color = player_color
         self.root = TreeNode(NULL_COORD, NULL_COORD)
         self.turns_count = 0
+        self.tt = TranspositionTable(1e6)
 
         self.early_positive_weights = array.array("f", weights["early"]["positive"])
         self.early_negative_weights = array.array("f", weights["early"]["negative"])
@@ -37,6 +39,7 @@ cdef class Tree():
 
         IF DEBUG:
             self.__explored_nodes = 0
+            self.__tt_hits = 0
 
 
     """
@@ -61,6 +64,7 @@ cdef class Tree():
     cpdef tuple[Coord, Coord, score_t] decide(self, int timeout):
         IF DEBUG: 
             self.__explored_nodes = 0
+            self.__tt_hits = 0
         
         self.turns_count += 1
         cdef time_t end_timestamp = time(NULL) + timeout
@@ -70,34 +74,22 @@ cdef class Tree():
 
         self.__updateWeights()
         
-        if self.root.score == MAX_SCORE:
-            # A winning move is already known, minimax is not necessary.
-            # This also prevents possible loops.
-            IF DEBUG: 
-                logger.debug("Following winning path")
-            best_score = MAX_SCORE
-            
-            for child in self.root.children:    
+        while time(NULL) < end_timestamp:
+            depth += 1
+            curr_best_score = self.minimax(self.root, depth, MINUS_INFINITY, PLUS_INFINITY, end_timestamp)
+            if curr_best_score == TIMEOUT:
+                depth -= 1
+                break
+            best_score = curr_best_score
+
+            for child in self.root.children:
                 if child.score == best_score:
                     best_child = child
                     break
-        else:
-            while time(NULL) < end_timestamp:
-                depth += 1
-                curr_best_score = self.minimax(self.root, depth, MINUS_INFINITY, PLUS_INFINITY, end_timestamp)
-                if curr_best_score == TIMEOUT:
-                    depth -= 1
-                    break
-                best_score = curr_best_score
-
-                for child in self.root.children:
-                    if child.score == best_score:
-                        best_child = child
-                        break
         
         IF DEBUG: 
             logger.debug(f"Explored depth = {depth}")
-            logger.debug(f"Explored nodes: {self.__explored_nodes}, {self.__explored_nodes/(timeout):.2f} nodes/s")
+            logger.debug(f"Explored nodes: {self.__explored_nodes}, {self.__explored_nodes/(timeout):.2f} nodes/s | {self.__tt_hits} TT hits")
         
         self.root = best_child
         _ = self.state.applyMove(best_child.start, best_child.end)
@@ -182,11 +174,31 @@ cdef class Tree():
         IF DEBUG:
             self.__explored_nodes += 1
 
+        cdef score_t alpha_orig = alpha
+        cdef score_t beta_orig = beta
         cdef TreeNode child
         cdef score_t eval_minimax, eval
+        cdef TraspositionEntry tt_entry
+
+
+        tt_entry = self.tt.getEntry(self.state)
+        if tt_entry.depth >= max_depth:
+            IF DEBUG: self.__tt_hits += 1
+            if tt_entry.entry_type == EXACT:
+                tree_node.score = tt_entry.value
+                return tt_entry.value
+            if tt_entry.entry_type == LOWERBOUND:
+                alpha = max(alpha, tt_entry.value)
+            elif tt_entry.entry_type == UPPERBOUND:
+                beta = min(beta, tt_entry.value)
+
+            if alpha >= beta: 
+                tree_node.score = tt_entry.value
+                return tt_entry.value
+
         
         if self.state.getGameState() != OPEN or max_depth == 0:
-            eval = self.state.evaluate(self.player_color, self.curr_positive_weights, self.curr_negative_weights)
+            eval = self.state.evaluate(self.player_color, max_depth, self.curr_positive_weights, self.curr_negative_weights)
         else:
             if ((self.state.is_white_turn and self.player_color == WHITE) or
                 (not self.state.is_white_turn and self.player_color == BLACK)):
@@ -215,6 +227,12 @@ cdef class Tree():
                     eval = min(eval, eval_minimax)
                     beta = min(eval, beta)
                     if eval <= alpha: break # cutoff
+
+        self.tt.setEntry(self.state,
+            entry_type = UPPERBOUND if eval <= alpha_orig else LOWERBOUND if eval >= beta_orig else EXACT,
+            value = eval,
+            depth = max_depth
+        )
 
         tree_node.score = eval
         return eval

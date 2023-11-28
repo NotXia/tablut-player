@@ -1,9 +1,14 @@
 from __future__ import annotations
 import numpy as np
 cimport numpy as cnp
+from libc.stdlib cimport rand, srand, RAND_MAX
+from libc.math cimport floor, ceil
 cnp.import_array()
 from .utils cimport *
 cimport cython
+
+srand(42)
+np.random.seed(42)
 
 
 cdef score_t MAX_SCORE = 1000
@@ -59,6 +64,27 @@ cdef char NO_CAMP = -1
 cdef Coord CASTLE_TILE = (4, 4)
 cdef list[Coord] NEAR_CASTLE_TILES = [(3, 4), (5, 4), (4, 3), (4, 5)]
 
+cdef int[:, :, :] zobrist_table = np.random.randint(low=0, high=RAND_MAX, size=(9, 9, 3), dtype=np.int32)
+cdef int zobrist_black = rand()
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+@cython.initializedcheck(False)
+cdef int zobristHash(cnp.ndarray[cnp.npy_byte, ndim=2] board, int n_rows, int n_cols, bint is_white_turn):
+    cdef int state_hash = 0
+    cdef int i, j
+
+    if not is_white_turn: state_hash ^= zobrist_black
+    for i in range(n_rows):
+        for j in range(n_cols):
+            if board[i, j] == KING: state_hash ^= zobrist_table[i, j, 0]
+            elif board[i, j] == WHITE: state_hash ^= zobrist_table[i, j, 1]
+            elif board[i, j] == BLACK: state_hash ^= zobrist_table[i, j, 2]
+
+    return state_hash
+
+
 
 """
     Simple class to represent the state of the game.
@@ -86,6 +112,62 @@ cdef class State:
 
     def __str__(self):
         return f"WhiteTurn = {self.is_white_turn}\n {str(self.board)}"
+
+
+    """
+        Computes the Zobrist hash of the current state.
+        Parameters
+        ----------
+            normalize : bool
+                If True, the board will be normalized with rotations and flips.
+                If False, the hash will be computed on the board as is.
+        Returns
+        -------
+            hash : int
+    """
+    cdef int hash(self, bint normalize=False):
+        if normalize:
+            return zobristHash(self.getNormalizedBoard(), self.N_ROWS, self.N_COLS, self.is_white_turn)
+        else:
+            return zobristHash(self.board, self.N_ROWS, self.N_COLS, self.is_white_turn)
+
+
+    """
+        Produces a normalized version of the current board
+        where the king is in the first upper-quadrant.
+        Returns
+        -------
+            normalized_board : np.array
+    """
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
+    @cython.initializedcheck(False)
+    cdef cnp.ndarray getNormalizedBoard(self):
+        cdef Coord pos_king = self.__findKing()
+        if (pos_king[0] == NULL_COORD[0]) and (pos_king[1] == NULL_COORD[1]): return self.board
+
+        if (pos_king[0] <= floor(self.N_ROWS/2)) and (pos_king[1] >= ceil(self.N_COLS/2)):
+            if pos_king[0] + pos_king[1] >= self.N_COLS-1:
+                return np.rot90(self.board, k=1)
+            else:
+                return np.flip(self.board, axis=1)
+        elif (pos_king[0] >= ceil(self.N_ROWS/2)) and (pos_king[1] >= floor(self.N_COLS/2)):
+            if pos_king[0] >= pos_king[1]:
+                return np.rot90(self.board, k=2)
+            else:
+                return np.rot90(np.flip(self.board, axis=0), k=1)
+        elif (pos_king[0] >= floor(self.N_ROWS/2)) and (pos_king[1] <= (floor(self.N_COLS/2)-1)):
+            if pos_king[0] + pos_king[1] <= self.N_COLS-1:
+                return np.rot90(self.board, k=3)
+            else:
+                return np.flip(self.board, axis=0)
+        elif (pos_king[0] <= (floor(self.N_ROWS/2)-1)) and (pos_king[1] <= (floor(self.N_COLS/2)-2)):
+            if pos_king[0] > pos_king[1]:
+                return np.rot90(np.flip(self.board, axis=1), k=1)
+            else:
+                return self.board
+        else:
+            return self.board
 
 
     @cython.boundscheck(False)
@@ -150,7 +232,7 @@ cdef class State:
         return king_moves + same_king_axis_moves + near_king_moves + capturing_moves, other_moves
 
 
-    cdef list[Move] __getPawnMoves(self, int i, int j):
+    cdef list[Move] __getPawnMoves(self, pos_t i, pos_t j):
         cdef list[Move] out = []
         cdef char direction
         cdef int n, step
@@ -299,7 +381,7 @@ cdef class State:
         -------
             is_valid : bool
     """
-    cdef bint isValidCell(self, int i, int j):
+    cdef bint isValidCell(self, pos_t i, pos_t j):
         return (0 <= i < self.N_ROWS) and (0 <= j < self.N_COLS)
 
     
@@ -316,7 +398,7 @@ cdef class State:
         -------
             is_wall : bool
     """
-    cdef bint isWall(self, int i, int j):
+    cdef bint isWall(self, pos_t i, pos_t j):
         return (i, j) in CAMP_DICT.keys() or (i, j) == CASTLE_TILE
     
     
@@ -344,7 +426,7 @@ cdef class State:
     @cython.wraparound(False)
     @cython.cdivision(True)
     @cython.initializedcheck(False)
-    cdef bint isCaptured(self, int i, int j, char to_filter_axis=VERT_HORIZ):
+    cdef bint isCaptured(self, pos_t i, pos_t j, char to_filter_axis=VERT_HORIZ):
         cdef int cnt_black
         cdef int k
         cdef bint is_vertically_captured, is_horizontally_captured
@@ -415,8 +497,7 @@ cdef class State:
     @cython.wraparound(False)
     @cython.cdivision(True)
     @cython.initializedcheck(False)
-    cdef bint isObstacle(self, int i, int j, char num_camp=NO_CAMP):
-        
+    cdef bint isObstacle(self, pos_t i, pos_t j, char num_camp=NO_CAMP):
         # Out of the board
         if not self.isValidCell(i, j):
             return True
@@ -456,7 +537,7 @@ cdef class State:
     @cython.wraparound(False)
     @cython.cdivision(True)
     @cython.initializedcheck(False)
-    cdef bint isCapturingElementFor(self, int pawn_i, int pawn_j, int check_i, int check_j):
+    cdef bint isCapturingElementFor(self, pos_t pawn_i, pos_t pawn_j, pos_t check_i, pos_t check_j):
         
         if self.memv_board[pawn_i, pawn_j] == WHITE or self.memv_board[pawn_i, pawn_j] == KING:
             return self.memv_board[check_i, check_j] == BLACK or self.isWall(check_i, check_j)
@@ -483,7 +564,7 @@ cdef class State:
     @cython.wraparound(False)
     @cython.cdivision(True)
     @cython.initializedcheck(False)
-    cdef char getCampOfPawnAt(self, int i, int j):
+    cdef char getCampOfPawnAt(self, pos_t i, pos_t j):
 
         if self.memv_board[i,j] != BLACK:
             return NO_CAMP
@@ -506,7 +587,7 @@ cdef class State:
             num_steps 
                 Number of steps the pawn can make.
     """
-    cdef int numSteps(self, int i, int j, char direction):
+    cdef int numSteps(self, pos_t i, pos_t j, char direction):
         cdef char num_camp = self.getCampOfPawnAt(i, j)
         cdef int num = 1
 
@@ -539,13 +620,13 @@ cdef class State:
             score : score_t
                 Score or heuristic of the board.
     """
-    cdef score_t evaluate(self, char player_color, float[:] positive_weights, float[:] negative_weights):
+    cdef score_t evaluate(self, char player_color, int max_depth, float[:] positive_weights, float[:] negative_weights):
         cdef char game_state = self.getGameState()
         
         if game_state == BLACK_WIN: 
-           return MAX_SCORE if player_color == BLACK else MIN_SCORE
+           return MAX_SCORE+max_depth if player_color == BLACK else MIN_SCORE-max_depth
         elif game_state == WHITE_WIN:
-            return MAX_SCORE if player_color == WHITE else MIN_SCORE
+            return MAX_SCORE+max_depth if player_color == WHITE else MIN_SCORE-max_depth
         else:
             return self.heuristics(player_color, positive_weights, negative_weights)
 
