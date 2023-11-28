@@ -26,7 +26,7 @@ class CleanButCleaner(clean):
             print("Removing compiled modules")
             for root, _, files in os.walk("."):
                 for f in files:
-                    if f.endswith(".c") or f.endswith(".so") or f.endswith(".pyd") or f.endswith(".html"):
+                    if f.endswith(".c") or f.endswith(".cpp") or f.endswith(".so") or f.endswith(".pyd") or f.endswith(".html"):
                         os.remove(os.path.join(root, f))
 
 setup(
