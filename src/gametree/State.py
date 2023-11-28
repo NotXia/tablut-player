@@ -601,7 +601,8 @@ class State():
                 ) - (
                     negative_weights[0] * self.__pawnRatio(BLACK) +
                     negative_weights[1] * self.__avgProximityToKingRatio(BLACK) + 
-                    negative_weights[2] * self.__safenessRatio(BLACK)
+                    negative_weights[2] * self.__safenessRatio(BLACK) +
+                    negative_weights[3] * self.__kingDangerRatio()
                 )
             )
         else:
@@ -609,7 +610,8 @@ class State():
                 (
                     positive_weights[0] * self.__pawnRatio(BLACK) + 
                     positive_weights[1] * self.__avgProximityToKingRatio(BLACK) + 
-                    positive_weights[2] * self.__safenessRatio(BLACK)
+                    positive_weights[2] * self.__safenessRatio(BLACK) +
+                    positive_weights[3] * self.__kingDangerRatio()
                 ) - (
                     negative_weights[0] * self.__pawnRatio(WHITE) +
                     negative_weights[1] * self.__avgProximityToKingRatio(WHITE) + 
@@ -716,3 +718,18 @@ class State():
                 if dist < m:
                     m = dist
         return 1 - (m / self.MAX_DIST_TO_ESCAPE)
+    
+
+    """
+        Determines how much the king is in danger.
+    """
+    def __kingDangerRatio(self) -> float:
+        pos_king = tuple(np.argwhere(self.board == KING)[0])
+        blacks_around = 0
+
+        if (self.isValidCell(pos_king[0]+1, pos_king[1])) and (self.board[pos_king[0]+1, pos_king[1]] == BLACK): blacks_around += 1
+        if (self.isValidCell(pos_king[0]-1, pos_king[1])) and (self.board[pos_king[0]-1, pos_king[1]] == BLACK): blacks_around += 1
+        if (self.isValidCell(pos_king[0], pos_king[1]+1)) and (self.board[pos_king[0], pos_king[1]+1] == BLACK): blacks_around += 1
+        if (self.isValidCell(pos_king[0], pos_king[1]-1)) and (self.board[pos_king[0], pos_king[1]-1] == BLACK): blacks_around += 1
+
+        return blacks_around / 4
