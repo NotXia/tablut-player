@@ -21,12 +21,12 @@ cdef score_t MINUS_INFINITY = MIN_SCORE - 100.0
     Class that represents the whole game tree.
 """
 cdef class Tree():
-    def __init__(self, State initial_state, char player_color, dict weights, debug=False):
+    def __init__(self, State initial_state, char player_color, dict weights, long tt_size, debug=False):
         self.state = initial_state
         self.player_color = player_color
         self.root = TreeNode(NULL_COORD, NULL_COORD)
         self.turns_count = 0
-        self.tt = TranspositionTable(1e6)
+        self.tt = TranspositionTable(tt_size)
 
         self.early_positive_weights = array.array("f", weights["early"]["positive"])
         self.early_negative_weights = array.array("f", weights["early"]["negative"])

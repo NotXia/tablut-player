@@ -61,4 +61,4 @@ cdef class State:
     cdef score_t __avgProximityToKingRatio(self, char color)
     cdef score_t __safenessRatio(self, char color)
     cdef score_t __minDistanceToEscapeRatio(self)
-
+    cdef score_t __kingDangerRatio(self)
