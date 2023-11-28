@@ -111,6 +111,7 @@ class Player:
         timeout_tol = 1,
         name = "TheCatIsOnTheTablut",
         weights:dict = None,
+        tt_size:int = 1e6,
         server_ip = "localhost",
         server_port = None,
         debug = False
@@ -121,6 +122,7 @@ class Player:
         self.timeout = timeout
         self.timeout_tol = timeout_tol
         self.weights = weights
+        self.tt_size = tt_size
         self.debug = debug
 
         self.game_tree = None
@@ -141,7 +143,7 @@ class Player:
 
             if self.game_tree is None:
                 # Tree created for the first time
-                self.game_tree = Tree(curr_state, self.my_color, weights=self.weights, debug=self.debug)
+                self.game_tree = Tree(curr_state, self.my_color, weights=self.weights, tt_size=self.tt_size, debug=self.debug)
             else:
                 self.game_tree.applyOpponentMove(curr_state)
 

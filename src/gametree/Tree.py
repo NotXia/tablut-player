@@ -12,12 +12,12 @@ if not cython.compiled: logger.warning(f"Using non-compiled {__file__} module")
     Class that represents the whole game tree.
 """
 class Tree():
-    def __init__(self, initial_state, player_color, weights: dict, debug=False):
+    def __init__(self, initial_state, player_color, weights: dict, tt_size=1e6, debug=False):
         self.state: State = initial_state
         self.player_color = player_color
         self.root = TreeNode(None, None)
         self.turns_count = 0
-        self.tt = TranspositionTable(1e7)
+        self.tt = TranspositionTable(tt_size)
 
         self.early_positive_weights = weights["early"]["positive"]
         self.early_negative_weights = weights["early"]["negative"]
