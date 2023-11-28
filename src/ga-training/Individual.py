@@ -93,16 +93,16 @@ class Individual:
     def export(self):
         return {
             "early": {
-                "positive": self.early_positive.genes.tolist(),
-                "negative": self.early_negative.genes.tolist()
+                "positive": self.early_positive.genes,
+                "negative": self.early_negative.genes
             },
             "mid": {
-                "positive": self.mid_positive.genes.tolist(),
-                "negative": self.mid_negative.genes.tolist()
+                "positive": self.mid_positive.genes,
+                "negative": self.mid_negative.genes
             },
             "late": {
-                "positive": self.late_positive.genes.tolist(),
-                "negative": self.late_negative.genes.tolist()
+                "positive": self.late_positive.genes,
+                "negative": self.late_negative.genes
             }
         }
 

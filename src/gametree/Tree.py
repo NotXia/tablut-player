@@ -2,6 +2,7 @@ from .State import State, OPEN, WHITE, BLACK, MAX_SCORE, MIN_SCORE
 import numpy as np
 from .TreeNode import TreeNode
 import time
+from .TranspositionTable import TranspositionTable, TraspositionEntry, EXACT, LOWERBOUND, UPPERBOUND
 import cython
 import logging
 logger = logging.getLogger(__name__)
@@ -16,6 +17,7 @@ class Tree():
         self.player_color = player_color
         self.root = TreeNode(None, None)
         self.turns_count = 0
+        self.tt = TranspositionTable(1e7)
 
         self.early_positive_weights = weights["early"]["positive"]
         self.early_negative_weights = weights["early"]["negative"]
@@ -29,6 +31,7 @@ class Tree():
         self.__debug = debug
         if self.__debug:
             self.__explored_nodes = 0
+            self.__tt_hit = 0
 
 
     """
@@ -53,7 +56,8 @@ class Tree():
     def decide(self, timeout):
         if self.__debug: 
             self.__explored_nodes = 0
-        
+            self.__tt_hit = 0
+
         self.turns_count += 1
         end_timestamp = time.time() + timeout
         best_child = None
@@ -61,16 +65,16 @@ class Tree():
 
         self.__updateWeights()
         
-        if self.root.score == MAX_SCORE:
+        if self.root.score is not None and self.root.score >= MAX_SCORE:
             # A winning move is already known, minimax is not necessary.
             # This also prevents possible loops.
             logger.debug("Following winning path")
-            best_score = MAX_SCORE
+            best_score = MIN_SCORE
             
             for child in self.root.children:    
-                if child.score == best_score:
+                if child.score > best_score:
+                    best_score = child.score
                     best_child = child
-                    break
         else:
             while time.time() < end_timestamp:
                 depth += 1
@@ -87,7 +91,7 @@ class Tree():
         
         if self.__debug:
             logger.debug(f"Explored depth = {depth}")
-            logger.debug(f"Explored nodes: {self.__explored_nodes}, {self.__explored_nodes/(timeout):.2f} nodes/s")
+            logger.debug(f"Explored nodes: {self.__explored_nodes}, {self.__explored_nodes/(timeout):.2f} nodes/s | {self.__tt_hit} TT hits")
 
         
         self.root = best_child
@@ -167,9 +171,29 @@ class Tree():
         if self.__debug:
             self.__explored_nodes += 1
 
+        alpha_orig = alpha
+        beta_orig = beta
+
+        # Transposition table lookup
+        tt_entry = self.tt[self.state]
+        if (tt_entry is not None) and (tt_entry.depth >= max_depth):
+            if self.__debug: self.__tt_hit += 1
+            if tt_entry.type == EXACT:
+                tree_node.score = tt_entry.value
+                return tt_entry.value
+            if tt_entry.type == LOWERBOUND:
+                alpha = max(alpha, tt_entry.value)
+            elif tt_entry.type == UPPERBOUND:
+                beta = min(beta, tt_entry.value)
+
+            if alpha >= beta: 
+                tree_node.score = tt_entry.value
+                return tt_entry.value
+
         if self.state.getGameState() != OPEN or max_depth == 0:
             eval = self.state.evaluate(
                 self.player_color,
+                max_depth,
                 self.curr_positive_weights,
                 self.curr_negative_weights,
             )
@@ -178,7 +202,7 @@ class Tree():
                 (not self.state.is_white_turn and self.player_color == BLACK)):
                 # Max
                 eval = -np.inf
-                for child in tree_node.getChildren(self.state):
+                for i, child in enumerate(tree_node.getChildren(self.state)):
                     if time.time() >= timeout_timestamp: return None # Timeout
                     
                     captured = self.state.applyMove(child.start, child.end)
@@ -187,13 +211,16 @@ class Tree():
                     
                     if eval_minimax is None: return None # Timeout
                     
-                    eval = max(eval, eval_minimax)
+                    # eval = max(eval, eval_minimax)
+                    if eval_minimax > eval:
+                        eval = eval_minimax
+                        tree_node.prioritizeChild(i)
                     alpha = max(eval, alpha)
                     if eval >= beta: break # cutoff
             else:
                 # Min
                 eval = np.inf
-                for child in tree_node.getChildren(self.state):
+                for i, child in enumerate(tree_node.getChildren(self.state)):
                     if time.time() >= timeout_timestamp: return None # Timeout
 
                     captured = self.state.applyMove(child.start, child.end)
@@ -202,9 +229,19 @@ class Tree():
                     
                     if eval_minimax is None: return None # Timeout
 
-                    eval = min(eval, eval_minimax)
+                    # eval = min(eval, eval_minimax)
+                    if eval_minimax < eval:
+                        eval = eval_minimax
+                        tree_node.prioritizeChild(i)
                     beta = min(eval, beta)
                     if eval <= alpha: break # cutoff
+
+        # Store in transposition table
+        self.tt[self.state] = TraspositionEntry(
+            entry_type = UPPERBOUND if eval <= alpha_orig else LOWERBOUND if eval >= beta_orig else EXACT,
+            value = eval,
+            depth = max_depth
+        )
 
         tree_node.score = eval
         return eval

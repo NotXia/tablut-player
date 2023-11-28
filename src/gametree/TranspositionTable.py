@@ -11,9 +11,10 @@ UPPERBOUND = 2
 
 
 class TraspositionEntry:
-    def __init__(self, entry_type:EXACT|LOWERBOUND|UPPERBOUND, value:float):
+    def __init__(self, entry_type:EXACT|LOWERBOUND|UPPERBOUND, value:float, depth:int):
         self.type = entry_type
         self.value = value
+        self.depth = depth
 
     def __str__(self):
         return f"{'E' if self.type == EXACT else 'L' if self.type == LOWERBOUND else 'U'}, {self.value}"
