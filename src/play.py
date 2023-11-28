@@ -13,8 +13,8 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--color", type=str.lower, required=True, choices=["white", "black"], help="Color of the player")
     parser.add_argument("-t", "--timeout", type=int, default=60, help="Time available to make a decision")
     parser.add_argument("-w", "--weights", type=str, default="./weights.json", help="Weights to load")
-    parser.add_argument("--tt-size", type=int, default=1e6, help="Number of entries in the transposition table")
-    parser.add_argument("--tol", type=int, default=1, help="Tolerance on the timeout")
+    parser.add_argument("--tt-size", type=int, default=1_000_000, help="Number of entries in the transposition table")
+    parser.add_argument("--tol", type=int, default=2, help="Tolerance on the timeout")
     parser.add_argument("--debug", action="store_true", default=False, help="Enable debug logs")
     args = parser.parse_args()
 

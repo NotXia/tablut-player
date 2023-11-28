@@ -160,5 +160,7 @@ cython_debug/
 #.idea/
 
 *.c
+*.cpp
 *.so
 *.pyd
+*.html
