@@ -52,6 +52,11 @@ def saveCheckpoint(dir_path, color, epoch, individual):
     except:
         print(f"Could not export individual {individual}")
 
+def loadCheckpoint(path):
+    with open(path, "r") as f:
+        checkpoint = json.load(f)
+    return checkpoint
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="Player's parameters training")
@@ -66,12 +71,20 @@ if __name__ == "__main__":
     parser.add_argument("--mutation-prob", type=float, required=True, help="Probability of a mutation")
     parser.add_argument("--whites-log", type=str, default="./whites.log", help="Log file for whites")
     parser.add_argument("--blacks-log", type=str, default="./blacks.log", help="Log file for blacks")
+    parser.add_argument("--whites-bootstrap", type=str, required=False, help="Starting weights for whites")
+    parser.add_argument("--blacks-bootstrap", type=str, required=False, help="Starting weights for blacks")
     args = parser.parse_args()
 
+    whites_starting_weights = DEFAULT_WHITES_STARTING_WEIGHTS
+    blacks_starting_weights = DEFAULT_BLACKS_STARTING_WEIGHTS
+    if args.whites_bootstrap is not None:
+        whites_starting_weights = loadCheckpoint(args.whites_bootstrap)["weights"]
+    if args.blacks_bootstrap is not None:
+        blacks_starting_weights = loadCheckpoint(args.blacks_bootstrap)["weights"]
 
     env = Environment(args.server_path, gui=args.gui)
-    white_population = Population(args.indivs, DEFAULT_WHITES_STARTING_WEIGHTS, WHITE, args.timeout)
-    black_population = Population(args.indivs, DEFAULT_BLACKS_STARTING_WEIGHTS, BLACK, args.timeout)
+    white_population = Population(args.indivs, whites_starting_weights, WHITE, args.timeout)
+    black_population = Population(args.indivs, blacks_starting_weights, BLACK, args.timeout)
     who_is_training = WHITE
     logger = Logger(args.whites_log, args.blacks_log)
     mutation_prob_whites = args.mutation_prob
