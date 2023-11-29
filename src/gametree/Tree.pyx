@@ -1,5 +1,3 @@
-DEF DEBUG = True
-
 cimport cython
 from cpython cimport array
 import numpy as np
@@ -37,9 +35,9 @@ cdef class Tree():
         self.curr_positive_weights = self.early_positive_weights
         self.curr_negative_weights = self.early_negative_weights
 
-        IF DEBUG:
-            self.__explored_nodes = 0
-            self.__tt_hits = 0
+        self.__debug = debug
+        self.__explored_nodes = 0
+        self.__tt_hits = 0
 
 
     """
@@ -62,7 +60,7 @@ cdef class Tree():
                 Score of the chosen move.
     """
     cpdef tuple[Coord, Coord, score_t] decide(self, int timeout):
-        IF DEBUG: 
+        if self.__debug: 
             self.__explored_nodes = 0
             self.__tt_hits = 0
         
@@ -87,7 +85,7 @@ cdef class Tree():
                     best_child = child
                     break
         
-        IF DEBUG: 
+        if self.__debug: 
             logger.debug(f"Explored depth = {depth}")
             logger.debug(f"Explored nodes: {self.__explored_nodes}, {self.__explored_nodes/(timeout):.2f} nodes/s | {self.__tt_hits} TT hits")
         
@@ -128,7 +126,7 @@ cdef class Tree():
             for child in self.root.children:
                 captured = self.state.applyMove(child.start, child.end)
                 if np.all(self.state.board == next_state.board):
-                    IF DEBUG:
+                    if self.__debug: 
                         logger.debug("Not dropping tree")
                     # Move found, update the root and
                     # leave the board status as is (do not need to revert).
@@ -140,7 +138,7 @@ cdef class Tree():
         
         # Move not found among the children of the root,
         # the current tree is deleted.
-        IF DEBUG:
+        if self.__debug: 
             logger.debug("Dropping tree")
         self.state = next_state
         self.root = TreeNode(NULL_COORD, NULL_COORD)
@@ -171,7 +169,7 @@ cdef class Tree():
     @cython.initializedcheck(False)
     cdef score_t minimax(self, TreeNode tree_node, int max_depth, score_t alpha, score_t beta, double timeout_timestamp):
         if getTime() >= timeout_timestamp: return TIMEOUT # Timeout
-        IF DEBUG:
+        if self.__debug: 
             self.__explored_nodes += 1
 
         cdef score_t alpha_orig = alpha
@@ -183,7 +181,7 @@ cdef class Tree():
 
         tt_entry = self.tt.getEntry(self.state)
         if tt_entry.depth >= max_depth:
-            IF DEBUG: self.__tt_hits += 1
+            if self.__debug: self.__tt_hits += 1
             if tt_entry.entry_type == EXACT:
                 tree_node.score = tt_entry.value
                 return tt_entry.value

@@ -21,6 +21,7 @@ cdef class Tree():
     cdef float[:] curr_positive_weights
     cdef float[:] curr_negative_weights
 
+    cdef bint __debug
     cdef int __explored_nodes
     cdef int __tt_hits
 
