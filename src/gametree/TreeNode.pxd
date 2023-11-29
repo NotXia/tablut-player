@@ -8,5 +8,5 @@ cdef class TreeNode:
     cdef list[TreeNode] children
     cdef unsigned int critical_len
 
-    cdef list[TreeNode] getChildren(self, State state)
+    cdef void generateChildren(self, State state, double timeout_timestamp)
     cdef prioritizeChild(self, int index)

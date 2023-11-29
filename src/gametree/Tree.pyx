@@ -8,7 +8,7 @@ cnp.import_array()
 from .State cimport State, OPEN, WHITE, BLACK, MAX_SCORE, MIN_SCORE
 from .TreeNode cimport TreeNode
 from .TranspositionTable cimport TranspositionTable, TraspositionEntry, EXACT, LOWERBOUND, UPPERBOUND
-from libc.time cimport time, time_t
+from .utils cimport getTime
 import logging
 logger = logging.getLogger(__name__)
 
@@ -67,14 +67,14 @@ cdef class Tree():
             self.__tt_hits = 0
         
         self.turns_count += 1
-        cdef time_t end_timestamp = time(NULL) + timeout
+        cdef double end_timestamp = getTime() + timeout
         cdef TreeNode best_child = None, child
         cdef int depth = 0
         cdef score_t best_score = MIN_SCORE, curr_best_score
 
         self.__updateWeights()
         
-        while time(NULL) < end_timestamp:
+        while getTime() < end_timestamp:
             depth += 1
             curr_best_score = self.minimax(self.root, depth, MINUS_INFINITY, PLUS_INFINITY, end_timestamp)
             if curr_best_score == TIMEOUT:
@@ -169,8 +169,8 @@ cdef class Tree():
     @cython.boundscheck(False)
     @cython.wraparound(False)
     @cython.initializedcheck(False)
-    cdef score_t minimax(self, TreeNode tree_node, int max_depth, score_t alpha, score_t beta, time_t timeout_timestamp):
-        if time(NULL) >= timeout_timestamp: return TIMEOUT # Timeout
+    cdef score_t minimax(self, TreeNode tree_node, int max_depth, score_t alpha, score_t beta, double timeout_timestamp):
+        if getTime() >= timeout_timestamp: return TIMEOUT # Timeout
         IF DEBUG:
             self.__explored_nodes += 1
 
@@ -178,8 +178,8 @@ cdef class Tree():
         cdef score_t beta_orig = beta
         cdef TreeNode child
         cdef score_t eval_minimax, eval
+        cdef list[Coord, char] captured
         cdef TraspositionEntry tt_entry
-
 
         tt_entry = self.tt.getEntry(self.state)
         if tt_entry.depth >= max_depth:
@@ -195,16 +195,18 @@ cdef class Tree():
             if alpha >= beta: 
                 tree_node.score = tt_entry.value
                 return tt_entry.value
-
         
         if self.state.getGameState() != OPEN or max_depth == 0:
             eval = self.state.evaluate(self.player_color, max_depth, self.curr_positive_weights, self.curr_negative_weights)
         else:
+            tree_node.generateChildren(self.state, timeout_timestamp)
+            if getTime() >= timeout_timestamp: return TIMEOUT # Timeout
+            
             if ((self.state.is_white_turn and self.player_color == WHITE) or
                 (not self.state.is_white_turn and self.player_color == BLACK)):
                 # Max
                 eval = MINUS_INFINITY
-                for child in tree_node.getChildren(self.state):
+                for child in tree_node.children:
                     captured = self.state.applyMove(child.start, child.end)
                     eval_minimax = self.minimax(child, max_depth-1, alpha, beta, timeout_timestamp)
                     self.state.revertMove(child.start, child.end, captured)
@@ -217,7 +219,7 @@ cdef class Tree():
             else:
                 # Min
                 eval = PLUS_INFINITY
-                for child in tree_node.getChildren(self.state):
+                for child in tree_node.children:
                     captured = self.state.applyMove(child.start, child.end)
                     eval_minimax = self.minimax(child, max_depth-1, alpha, beta, timeout_timestamp)
                     self.state.revertMove(child.start, child.end, captured)

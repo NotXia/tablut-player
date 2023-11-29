@@ -26,4 +26,4 @@ cdef class Tree():
 
     cdef void __updateWeights(self)
     cpdef tuple[Coord, Coord, score_t] decide(self, int timeout)
-    cdef score_t minimax(self, TreeNode tree_node, int max_depth, score_t alpha, score_t beta, time_t timeout_timestamp)
+    cdef score_t minimax(self, TreeNode tree_node, int max_depth, score_t alpha, score_t beta, double timeout_timestamp)

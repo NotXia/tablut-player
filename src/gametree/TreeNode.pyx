@@ -1,3 +1,5 @@
+from .utils cimport getTime
+
 """
     Class that represents a node in the game tree.
 """
@@ -10,36 +12,21 @@ cdef class TreeNode:
         self.critical_len = 0
 
 
-    """
-        Returns a generator of the children of the node with a given state.
-        Children are generated if needed.
-
-        Parameters
-        ----------
-            state : State
-                State of the board. Needed to generate the children if needed.
-
-        Returns
-        -------
-            children_generator : Generator[TreeNode]
-                Children of this node.
-    """
-    cdef list[TreeNode] getChildren(self, State state):
+    cdef void generateChildren(self, State state, double timeout_timestamp):
         cdef list[Move] critical_moves, other_moves
         cdef Coord start, end
         cdef TreeNode child
 
         if len(self.children) == 0:
-            # Children of this node haven't been generated yet
             critical_moves, other_moves = state.getMoves()
             self.critical_len = len(critical_moves)
             for start, end in critical_moves + other_moves:
+                if getTime() >= timeout_timestamp:
+                    self.children = []
+                    self.critical_len = 0
+                    return
                 child = TreeNode(start, end)
                 self.children.append(child)
-                
-        # Children of this node already generated
-        return self.children
-
 
     cdef prioritizeChild(self, int index):
         self.children.insert(0, self.children.pop(index))

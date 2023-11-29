@@ -6,3 +6,6 @@ ctypedef float score_t
 
 
 cdef Coord NULL_COORD
+
+
+cdef double getTime()
