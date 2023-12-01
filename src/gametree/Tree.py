@@ -1,9 +1,10 @@
-from .State import State, OPEN, WHITE, BLACK, MAX_SCORE, MIN_SCORE
+from .State import State, OPEN, WHITE, BLACK, KING, EMPTY, MAX_SCORE, MIN_SCORE
 import numpy as np
 from .TreeNode import TreeNode
 import time
 from .TranspositionTable import TranspositionTable, TraspositionEntry, EXACT, LOWERBOUND, UPPERBOUND
 import cython
+import random
 import logging
 logger = logging.getLogger(__name__)
 if not cython.compiled: logger.warning(f"Using non-compiled {__file__} module")
@@ -65,17 +66,7 @@ class Tree():
 
         self.__updateWeights()
         
-        if self.root.score is not None and self.root.score >= MAX_SCORE:
-            # A winning move is already known, minimax is not necessary.
-            # This also prevents possible loops.
-            logger.debug("Following winning path")
-            best_score = MIN_SCORE
-            
-            for child in self.root.children:    
-                if child.score > best_score:
-                    best_score = child.score
-                    best_child = child
-        else:
+        try:
             while time.time() < end_timestamp:
                 depth += 1
                 curr_best_score = self.minimax(self.root, depth, -np.inf, +np.inf, end_timestamp)
@@ -88,16 +79,28 @@ class Tree():
                     if child.score == best_score:
                         best_child = child
                         break
-        
-        if self.__debug:
-            logger.debug(f"Explored depth = {depth}")
-            logger.debug(f"Explored nodes: {self.__explored_nodes}, {self.__explored_nodes/(timeout):.2f} nodes/s | {self.__tt_hit} TT hits")
+            
+            to_move_pawn = self.state.board[best_child.start[0], best_child.start[1]]
+            if ((self.player_color == WHITE and to_move_pawn == BLACK) or
+                (self.player_color == BLACK and (to_move_pawn == WHITE or to_move_pawn == KING)) or
+                (self.state.board[best_child.end[0], best_child.end[1]] != EMPTY)):
+                raise Exception("Trying to do an invalid move")
+            
+            if self.__debug:
+                logger.debug(f"Explored depth = {depth}")
+                logger.debug(f"Explored nodes: {self.__explored_nodes}, {self.__explored_nodes/(timeout):.2f} nodes/s | {self.__tt_hit} TT hits")
+            
+            self.root = best_child
+            _ = self.state.applyMove(best_child.start, best_child.end)
+            return best_child.start, best_child.end, best_score
+        except:
+            logger.error("Cannot find a move. Going in emergency mode.")
+            self.root = TreeNode(None, None)
+            self.root.children = [*self.root.getChildren(self.state)]
+            child = random.choice(self.root.children)
+            _ = self.state.applyMove(child.start, child.end)
+            return child.start, child.end, 0
 
-        
-        self.root = best_child
-        _ = self.state.applyMove(best_child.start, best_child.end)
-        return best_child.start, best_child.end, best_score
-    
 
     """
         Moves the root of the tree to the node containing the opponent's move.

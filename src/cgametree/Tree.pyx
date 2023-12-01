@@ -3,9 +3,10 @@ from cpython cimport array
 import numpy as np
 cimport numpy as cnp
 cnp.import_array()
-from .State cimport State, OPEN, WHITE, BLACK, MAX_SCORE, MIN_SCORE
+from .State cimport State, OPEN, WHITE, BLACK, KING, EMPTY, MAX_SCORE, MIN_SCORE
 from .TreeNode cimport TreeNode
 from .TranspositionTable cimport TranspositionTable, TraspositionEntry, EXACT, LOWERBOUND, UPPERBOUND
+import random
 from .utils cimport getTime
 import logging
 logger = logging.getLogger(__name__)
@@ -69,30 +70,44 @@ cdef class Tree():
         cdef TreeNode best_child = None, child
         cdef int depth = 0
         cdef score_t best_score = MIN_SCORE, curr_best_score
+        cdef char to_move_pawn
 
         self.__updateWeights()
         
-        while getTime() < end_timestamp:
-            depth += 1
-            curr_best_score = self.minimax(self.root, depth, MINUS_INFINITY, PLUS_INFINITY, end_timestamp)
-            if curr_best_score == TIMEOUT:
-                depth -= 1
-                break
-            best_score = curr_best_score
-
-            for child in self.root.children:
-                if child.score == best_score:
-                    best_child = child
+        try:
+            while getTime() < end_timestamp:
+                depth += 1
+                curr_best_score = self.minimax(self.root, depth, MINUS_INFINITY, PLUS_INFINITY, end_timestamp)
+                if curr_best_score == TIMEOUT:
+                    depth -= 1
                     break
-        
-        if self.__debug: 
-            logger.debug(f"Explored depth = {depth}")
-            logger.debug(f"Explored nodes: {self.__explored_nodes}, {self.__explored_nodes/(timeout):.2f} nodes/s | {self.__tt_hits} TT hits")
-        
-        self.root = best_child
-        _ = self.state.applyMove(best_child.start, best_child.end)
-        return best_child.start, best_child.end, best_score
-    
+                best_score = curr_best_score
+
+                for child in self.root.children:
+                    if child.score == best_score:
+                        best_child = child
+                        break
+            
+            to_move_pawn = self.state.board[best_child.start[0], best_child.start[1]]
+            if ((self.player_color == WHITE and to_move_pawn == BLACK) or
+                (self.player_color == BLACK and (to_move_pawn == WHITE or to_move_pawn == KING)) or
+                (self.state.board[best_child.end[0], best_child.end[1]] != EMPTY)):
+                raise Exception("Trying to do an invalid move")
+
+            if self.__debug: 
+                logger.debug(f"Explored depth = {depth}")
+                logger.debug(f"Explored nodes: {self.__explored_nodes}, {self.__explored_nodes/(timeout):.2f} nodes/s | {self.__tt_hits} TT hits")
+            
+            self.root = best_child
+            _ = self.state.applyMove(best_child.start, best_child.end)
+            return best_child.start, best_child.end, best_score
+        except:
+            logger.error("Cannot find a move. Going in emergency mode.")
+            self.root = TreeNode(NULL_COORD, NULL_COORD)
+            self.root.generateChildren(self.state, end_timestamp+1000)
+            best_child = random.choice(self.root.children)
+            _ = self.state.applyMove(best_child.start, best_child.end)
+            return best_child.start, best_child.end, 0
 
     """
         Updates the weights used to compute the heuristics.
