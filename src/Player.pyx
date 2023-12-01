@@ -4,8 +4,8 @@ import json
 import numpy as np
 cimport numpy as cnp
 cnp.import_array()
-from gametree.State cimport BLACK, WHITE, EMPTY, KING, State
-from gametree.Tree cimport Tree
+from cgametree.State cimport BLACK, WHITE, EMPTY, KING, State
+from cgametree.Tree cimport Tree
 import time
 import logging
 logger = logging.getLogger(__name__)
